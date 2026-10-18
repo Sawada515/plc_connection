@@ -91,8 +91,6 @@ bool Serial::write(const std::uint8_t *data, size_t size)
 
 ssize_t Serial::read(std::uint8_t* buffer, const size_t max_read_size, const int timeout_ms)
 {
-    size_t already_read_byte = 0;
-
     if (fd_ == -1 || buffer == nullptr || max_read_size == 0 || timeout_ms == 0) {
         return -1;
     }
@@ -103,22 +101,10 @@ ssize_t Serial::read(std::uint8_t* buffer, const size_t max_read_size, const int
         .revents = 0
     };
 
-    const auto start_time_ms = std::chrono::steady_clock::now();
+    size_t already_read_byte = 0;
 
     while (already_read_byte < max_read_size) {
-        const auto current_time_ms = std::chrono::steady_clock::now();
-
-        // 経過時間
-        const auto elapsed_time_ms = 
-            std::chrono::duration_cast<std::chrono::milliseconds>(current_time_ms - start_time_ms).count();
-        
-        if (elapsed_time_ms >= timeout_ms) {
-            break;  // timeout
-        }
-
-        const int remaining_time = timeout_ms - static_cast<int>(elapsed_time_ms);
-
-        int ret = ::poll(&pfd, 1, remaining_time);        
+        int ret = ::poll(&pfd, 1, timeout_ms);        
         if (ret < 0) {
             if (errno == EINTR) {
                 continue; 
@@ -126,7 +112,6 @@ ssize_t Serial::read(std::uint8_t* buffer, const size_t max_read_size, const int
             
             return -1;
         }
-
         if (ret == 0) {
             break;  // timeout
         }
@@ -140,7 +125,7 @@ ssize_t Serial::read(std::uint8_t* buffer, const size_t max_read_size, const int
 
         // POLLIN <= 読み取り可能データあり
         if (pfd.revents & POLLIN) {
-            size_t n = ::read(fd_, buffer + already_read_byte, max_read_size - already_read_byte);
+            ssize_t n = ::read(fd_, buffer + already_read_byte, max_read_size - already_read_byte);
             if (n < 0) {
                 if (errno == EINTR) {
                     continue; 
