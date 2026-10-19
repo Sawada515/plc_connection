@@ -14,13 +14,15 @@
 
 #include <cstring>
 #include <chrono>
+#include <assert>
 
-Serial::Serial(const std::string& device_name, baudrate_t baudrate)
+Serial::Serial(const std::string& device_name, baudrate_t baudrate, int timeout_ms)
     : device_name_(device_name)
     , baudrate_(baudrate)
+    , timeout_ms_(timeout_ms)
     , fd_(-1)
     {
-        ;
+        assert(timeout_ms >= 0);
     }
 
 Serial::~Serial()
@@ -89,7 +91,7 @@ bool Serial::write(const std::uint8_t *data, size_t size)
     return true;
 }
 
-ssize_t Serial::read(std::uint8_t* buffer, const size_t max_read_size, const int timeout_ms)
+ssize_t Serial::read(std::uint8_t* buffer, const size_t max_read_size)
 {
     if (fd_ == -1 || buffer == nullptr || max_read_size == 0 || timeout_ms == 0) {
         return -1;
@@ -104,7 +106,7 @@ ssize_t Serial::read(std::uint8_t* buffer, const size_t max_read_size, const int
     size_t already_read_byte = 0;
 
     while (already_read_byte < max_read_size) {
-        int ret = ::poll(&pfd, 1, timeout_ms);        
+        int ret = ::poll(&pfd, 1, timeout_ms_);        
         if (ret < 0) {
             if (errno == EINTR) {
                 continue; 

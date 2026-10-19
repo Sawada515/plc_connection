@@ -17,7 +17,7 @@
 
 class Serial {
   public:
-    typedef enum baudrate {
+    enum class baudrate_t : int {
         BAUDRATE_300 = B300,
         BAUDRATE_600 = B600,
         BAUDRATE_1200 = B1200,
@@ -26,15 +26,17 @@ class Serial {
         BAUDRATE_9600 = B9600,
         BAUDRATE_19200 = B19200,
         BAUDRATE_38400 = B38400,
-    } baudrate_t;
+    };
 
     /**
      * @brief Constructor
      * 
-     * @param device_name 
-     * @param baudrate 
+     * @param[in] device_name 
+     * @param[in] baudrate 
+     * @param[in] timeout_ms 
+     * @brief  timeout_msはPLC側と値を合わせる
      */
-    Serial(const std::string& device_name, baudrate_t baudrate);
+    Serial(const std::string& device_name, baudrate_t baudrate, int timeout_ms);
 
     /**
      * @brief Destructor
@@ -74,11 +76,12 @@ class Serial {
      * 
      * @note timeout_ms: recive data timeout
      */
-    ssize_t read(std::uint8_t* buffer, const size_t max_read_size, const int timeout_ms);
+    ssize_t read(std::uint8_t* buffer, const size_t max_read_size);
 
   private:
     std::string device_name_;
     baudrate_t baudrate_;
+    int timeout_ms_;
     int fd_;
 };
 
