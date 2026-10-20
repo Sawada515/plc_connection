@@ -1,8 +1,12 @@
 /**
- * @file protocol.hpp
- * @author sawada
- * @brief PLC Protocol header file
+ * @file computer_link.hpp
+ * @author Sawada
+ * @brief 
+ * @version 0.1
  * @date 2026-09-18
+ * 
+ * @copyright Copyright (c) 2026
+ * 
  */
 
 #ifndef COMPUTER_LINK_HPP_

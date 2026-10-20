@@ -1,8 +1,11 @@
 /**
  * @file serial.hpp
- * @brief Serial communication interface for PLC (Programmable Logic Controller).
  * @author Sawada
- * @date 2026-09-13
+ * @brief 
+ * @version 0.1
+ * @date 2026-09-18
+ * 
+ * @copyright Copyright (c) 2026
  */
 
 #ifndef SERIAL_HPP_

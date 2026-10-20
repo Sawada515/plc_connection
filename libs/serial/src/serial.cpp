@@ -1,8 +1,12 @@
 /**
- * @file serial.cpp
- * @brief Implementation of the Serial class for PLC (Programmable Logic Controller) serial communication.
+ * @file serial.hpp
  * @author Sawada
- * @date 2026-09-13
+ * @brief 
+ * @version 0.1
+ * @date 2026-10-18
+ * 
+ * @copyright Copyright (c) 2026
+ * 
  */
 
 #include "serial.hpp"
