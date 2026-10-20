@@ -11,10 +11,10 @@
 #include <poll.h>
 #include <error.h>
 #include <string.h>
+#include <assert.h>
 
 #include <cstring>
 #include <chrono>
-#include <assert>
 
 Serial::Serial(const std::string& device_name, baudrate_t baudrate, int timeout_ms)
     : device_name_(device_name)
