@@ -12,22 +12,26 @@
 
 #include <cerrno>
 
-bool Communication::wait_ms(long ms)
-{
-    assert(ms >= 0);
+Communication::Communication(ProtocolType protocol_type, const std::string& device_name, const bool append_checksum_flag)
+    : protocol_type_(protocol_type), device_name_(device_name), append_checksum_flag_(append_checksum_flag) {
+    // Initialize the protocol handler based on the selected protocol type
+    switch (protocol_type_) {
+        case ProtocolType::ComputerLinkTypeNoCRLF:
+            protocol_handler_ = new protocol::ComputerLink(device_name_, append_checksum_flag_, protocol_type_ == ProtocolType::ComputerLinkTypeWithCRLF);
 
-    timespec req{};
+            break;
+        case ProtocolType::ComputerLinkTypeWithCRLF:
+            protocol_handler_ = new protocol::ComputerLink(device_name_, append_checksum_flag_, protocol_type_ == ProtocolType::ComputerLinkTypeWithCRLF);
 
-    req.tv_sec = ms / 1000;
-    req.tv_nsec = (ms % 1000) * 1000000L;
+            break;
+        case ProtocolType::ModbusRTU:
+            assert(false && "未実装");
 
-    while (true) {
-        int ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &req, &req);
-        if (ret == 0) {
-            return true;
-        }
-        if (ret != EINTR) {
-            return false;
-        }
+            protocol_handler_ = nullptr;
+
+            break;
+        default:
+            assert(false && "Unsupported protocol type");
+
+            break;
     }
-}

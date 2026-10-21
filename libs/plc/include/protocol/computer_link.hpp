@@ -14,6 +14,7 @@
 
 #include "serial/serial.hpp"
 
+#include <cstdint>
 #include <string>
 #include <cstring>
 #include <vector>
@@ -21,11 +22,6 @@
 namespace protocol {
     class ComputerLink {
       public:
-        struct CommonArgs {
-            unsigned char branch_number;
-            unsigned char pc_number;
-            unsigned char teregram_wait;
-        };
     
         /**
          * @brief Construct a new ComputerLink object
@@ -38,29 +34,46 @@ namespace protocol {
         ~ComputerLink();
 
         bool br(
-            CommonArgs common_args,
-            std::string head_device_number,
-            unsigned char number_of_device,
-            std::vector<unsigned char> data,
+            const std::uint16_t branch_number,
+            const std::uint16_t pc_number,
+            const std::
         );
 
         bool wr(
-            CommonArgs common_args,
-            std::string head_device_number,
-            unsigned char number_of_device,
-            std::vector<unsigned char> data,
         );
 
         bool qr(
-            CommonArgs common_args,
-            std::string head_device_number,
-            unsigned char number_of_device,
-            std::vector<unsigned char> data,
         ); 
         
 
       private:
-        std::uint16_t calculate_checksum(const std::uint8_t *data, size_t size);
+        enum class CommandType : std::uint16_t {
+            BR,
+            WR,
+            QR,
+            BW,
+            WW,
+            QW,
+            
+        }
+
+        /**
+         * @brief Calculate the checksum of the given data
+         * 
+         * @param[in] data Pointer to the data
+         * @param[in] length Length of the data
+         * @return std::uint16 The calculated checksum
+         */
+        std::uint16_t calculate_checksum(const std::uint8_t* data, size_t length);
+    
+        /**
+         * @brief Wait for a specified number of milliseconds
+         * 
+         * @param[in] ms Number of milliseconds to wait
+         * @return true if the wait was successful
+         * @return false if an error occurred during the wait
+         */
+        bool wait_ms(long ms);
 
         bool write(const std::uint8_t *data, size_t size);
         bool read(vector<std::uint8_t>& buffer);

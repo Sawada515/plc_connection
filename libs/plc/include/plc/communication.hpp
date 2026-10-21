@@ -10,40 +10,115 @@
  */
 
 #include <cstdint>
+#include <vector>
 #include <string>
 
 class Communication {
   public:
     /**
+    * @brief Common arguments for communication
+    *
+    */
+    struct CommonArgs {
+        unsigned char branch_number;    /** branch_number 局番号*/
+        unsigned char pc_number;        /** pc_number PC番号*/
+        unsigned char telegram_wait;    /** telegram_wait 伝文ウェイト */
+    };
+
+    struct DeviceAddress {
+        char device_preffix;            /** device_prefix デバイス接頭文字 */
+        unsigned int device_number;     /** device_number デバイス番号 */
+    };
+
+    struct TestWriteData {
+        DeviceAddress device_address;   /** device_address デバイスアドレス */
+        std::uint32_t set_data;         /** set_data 設定データ */
+    };
+
+    enum class ProtocolType {
+        ComputerLinkTypeNoCRLF,         /** ComputerLinkTypeNoCRLF データの末尾にCRとLFを付加しないプロトコル */
+        ComputerLinkTypeWithCRLF,       /** ComputerLinkTypeWithCRLF  データの末尾にCRとLFを付加するプロトコル */
+        ModbusRTU                       /** ModbusRTU 未実装 */
+    };
+
+    /**
      * @brief Construct a new Communication object
      */
-    Communication();
+    Communication(
+        const ProtocolType protocol_type,
+        const std::string& device_name,
+        const bool append_checksum_flag
+    );
 
     /**
      * @brief Destroy the Communication object
      */
     ~Communication();
 
-    bool read_bit_device(std::string &device_address, )
+    bool
+    read_bit_device(
+        const CommonArgs common_args,
+        const DeviceAddress device_address,
+        const unsigned char number_of_devices,
+        std::vector<std::uint8_t> &recv_data
+    );
 
+    bool
+    read_word_device(
+        const CommonArgs common_args,
+        const DeviceAddress device_address,
+        const unsigned char number_of_device,
+        std::vector<std::uint16_t> &recv_data
+    );
 
+    bool
+    write_bit_device(
+        const CommonArgs common_args,
+        const DeviceAddress device_address,
+        const unsigned char number_of_devices,
+        const std::vector<std::uint8_t> &send_data
+    );
+
+    bool
+    write_word_device(
+        const CommonArgs common_args,
+        const DeviceAddress device_address,
+        const unsigned char number_of_devices,
+        const std::vector<std::uint16_t> &send_data
+    );
+
+    bool
+    test_bit_device(
+        const CommonArgs common_args,
+        const std::vector<TestWriteData> send_data
+    );
+
+    bool
+    test_word_device(
+        const CommonArgs common_args,
+        const std::vector<TestWriteData> send_data
+    );
+
+    bool
+    remote_run(
+        const CommonArgs common_args
+    );
+
+    bool
+    remote_stop(
+        const CommonArgs common_args
+    );
+
+    void
+    write_global_signal(
+        const CommonArgs common_args,
+        const bool signal_data
+    );
 
   private:
-    /**
-     * @brief Calculate the checksum of the given data
-     * 
-     * @param[in] data Pointer to the data
-     * @param[in] length Length of the data
-     * @return std::uint16 The calculated checksum
-     */
-    std::uint16_t calculate_checksum(const std::uint8_t* data, size_t length);
+    ProtocolType protocol_type_;
+    std::string device_name_;
+    bool append_checksum_flag_;
 
-    /**
-     * @brief Wait for a specified number of milliseconds
-     * 
-     * @param[in] ms Number of milliseconds to wait
-     * @return true if the wait was successful
-     * @return false if an error occurred during the wait
-     */
-    bool wait_ms(long ms);
+    void* protocol_handler_;
 };
