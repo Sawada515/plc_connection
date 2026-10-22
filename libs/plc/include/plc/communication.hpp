@@ -25,13 +25,8 @@ class Communication {
         unsigned char telegram_wait;    /** telegram_wait 伝文ウェイト */
     };
 
-    struct DeviceAddress {
-        char device_preffix;            /** device_prefix デバイス接頭文字 */
-        unsigned int device_number;     /** device_number デバイス番号 */
-    };
-
     struct TestWriteData {
-        DeviceAddress device_address;   /** device_address デバイスアドレス */
+        std::string device_address;     /** device_address デバイスアドレス */
         std::uint32_t set_data;         /** set_data 設定データ */
     };
 
@@ -58,7 +53,7 @@ class Communication {
     bool
     read_bit_device(
         const CommonArgs common_args,
-        const DeviceAddress device_address,
+        const string& device_address,
         const unsigned char number_of_devices,
         std::vector<std::uint8_t> &recv_data
     );
@@ -66,7 +61,7 @@ class Communication {
     bool
     read_word_device(
         const CommonArgs common_args,
-        const DeviceAddress device_address,
+        const string& device_address,
         const unsigned char number_of_device,
         std::vector<std::uint16_t> &recv_data
     );
@@ -74,7 +69,7 @@ class Communication {
     bool
     write_bit_device(
         const CommonArgs common_args,
-        const DeviceAddress device_address,
+        const string& device_address,
         const unsigned char number_of_devices,
         const std::vector<std::uint8_t> &send_data
     );
@@ -82,7 +77,7 @@ class Communication {
     bool
     write_word_device(
         const CommonArgs common_args,
-        const DeviceAddress device_address,
+        const string& device_address,
         const unsigned char number_of_devices,
         const std::vector<std::uint16_t> &send_data
     );
@@ -114,7 +109,7 @@ class Communication {
         const CommonArgs common_args,
         const bool signal_data
     );
-
+    
   private:
     ProtocolType protocol_type_;
     std::string device_name_;
