@@ -30,19 +30,25 @@ class Communication {
         std::uint32_t set_data;         /** set_data 設定データ */
     };
 
-    enum class ProtocolType {
-        ComputerLinkTypeNoCRLF,         /** ComputerLinkTypeNoCRLF データの末尾にCRとLFを付加しないプロトコル */
-        ComputerLinkTypeWithCRLF,       /** ComputerLinkTypeWithCRLF  データの末尾にCRとLFを付加するプロトコル */
-        ModbusRTU                       /** ModbusRTU 未実装 */
+    enum class SerialBaudRate : unsigned int {
+        BAUDRATE_300    = 0,
+        BAUDRATE_600    = 1,
+        BAUDRATE_1200   = 2,
+        BAUDRATE_2400   = 3,
+        BAUDRATE_4800   = 4,
+        BAUDRATE_9600   = 5,
+        BAUDRATE_19200  = 6,
+        BAUDRATE_38400  = 7
     };
 
     /**
      * @brief Construct a new Communication object
      */
     Communication(
-        const ProtocolType protocol_type,
         const std::string& device_name,
         const bool append_checksum_flag
+        const bool append_crlf_flag,
+        const SerialBaudRate baudrate // <= assertによるチェックを行う
     );
 
     /**
@@ -111,9 +117,7 @@ class Communication {
     );
     
   private:
-    ProtocolType protocol_type_;
     std::string device_name_;
     bool append_checksum_flag_;
-
-    void* protocol_handler_;
+    bool append_crlf_flag_;
 };

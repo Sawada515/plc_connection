@@ -26,7 +26,7 @@ namespace protocol {
         /**
          * @brief Construct a new ComputerLink object
          */
-        ComputerLink(const std::string& device_name, bool append_checksum_flag, bool append_crlf_flag);
+        ComputerLink(const std::string& device_name, bool append_checksum_flag, bool append_crlf_flag, unsigned int baudrate_key, const int timeout_ms);
     
         /**
          * @brief Destroy the ComputerLink object
@@ -168,32 +168,23 @@ namespace protocol {
             NAK = 0x15,
         };
 
-        long calculate_telegram_wait_to_ms(const std::uint8_t telegram_wait);
 
-        /**
-         * @brief Calculate the checksum of the given data
-         * 
-         * @param[in] data Pointer to the data
-         * @param[in] length Length of the data
-         * @return std::uint16 The calculated checksum
-         */
-        std::uint16_t calculate_checksum(const std::uint8_t* data, size_t length);
-    
-        /**
-         * @brief Wait for a specified number of milliseconds
-         * 
-         * @param[in] ms Number of milliseconds to wait
-         * @return true if the wait was successful
-         * @return false if an error occurred during the wait
-         */
-        bool wait_ms(long ms);
-
-        bool write(const std::uint8_t *data, size_t size);
-        bool read(vector<std::uint8_t>& buffer);
-
+        bool append_checksum_flag_;
+        bool append_crlf_flag_;
         std::string device_name_;
 
-        vector<std::uint8_t> send_data_;
+        Serial serial_;
+
+        std::vector<std::uint8_t> internal_send_data_;
+        std::vector<std::uint8_t> internal_recv_data_;
+
+        char recv_checksum_buffer_[2] = { '\0 '};
+
+        size_t read_until(std::uint8_t* buffer, const size_t max_read_size, const char delimiter);
+
+        void finalize_send_data();
+
+        bool recv_frame();
     };
 }
 
