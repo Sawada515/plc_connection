@@ -26,7 +26,7 @@ Serial::Serial(const std::string& device_name, baudrate_t baudrate, int timeout_
     , timeout_ms_(timeout_ms)
     , fd_(-1)
     {
-        assert(timeout_ms >= 0);
+        assert(timeout_ms_ < 0);
     }
 
 Serial::~Serial()
@@ -42,8 +42,8 @@ bool Serial::open()
     }
 
     struct termios tty{};
-    cfsetospeed(&tty, baudrate_);
-    cfsetispeed(&tty, baudrate_);
+    cfsetospeed(&tty, static_cast<speed_t>(baudrate_));
+    cfsetispeed(&tty, static_cast<speed_t>(baudrate_));
 
     tty.c_cflag &= ~PARENB; // parity none
     tty.c_cflag &= ~CSTOPB; // stop bit 1
@@ -97,7 +97,7 @@ bool Serial::write(const std::uint8_t *data, size_t size)
 
 ssize_t Serial::read(std::uint8_t* buffer, const size_t max_read_size)
 {
-    if (fd_ == -1 || buffer == nullptr || max_read_size == 0 || timeout_ms == 0) {
+    if (fd_ == -1 || buffer == nullptr || max_read_size == 0 || timeout_ms_ == 0) {
         return -1;
     }
 

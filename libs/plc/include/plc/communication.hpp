@@ -46,7 +46,7 @@ class Communication {
      */
     Communication(
         const std::string& device_name,
-        const bool append_checksum_flag
+        const bool append_checksum_flag,
         const bool append_crlf_flag,
         const SerialBaudRate baudrate // <= assertによるチェックを行う
     );
@@ -59,7 +59,7 @@ class Communication {
     bool
     read_bit_device(
         const CommonArgs common_args,
-        const string& device_address,
+        const std::string& device_address,
         const unsigned char number_of_devices,
         std::vector<std::uint8_t> &recv_data
     );
@@ -67,7 +67,7 @@ class Communication {
     bool
     read_word_device(
         const CommonArgs common_args,
-        const string& device_address,
+        const std::string& device_address,
         const unsigned char number_of_device,
         std::vector<std::uint16_t> &recv_data
     );
@@ -75,7 +75,7 @@ class Communication {
     bool
     write_bit_device(
         const CommonArgs common_args,
-        const string& device_address,
+        const std::string& device_address,
         const unsigned char number_of_devices,
         const std::vector<std::uint8_t> &send_data
     );
@@ -83,7 +83,7 @@ class Communication {
     bool
     write_word_device(
         const CommonArgs common_args,
-        const string& device_address,
+        const std::string& device_address,
         const unsigned char number_of_devices,
         const std::vector<std::uint16_t> &send_data
     );
