@@ -191,6 +191,9 @@ namespace protocol {
         bool recv_frame();
 
         void create_transaction_data(bool is_error, std::uint8_t branch_number, std::uint8_t pc_number);
+
+        bool parse_recv_normal_data(std::vector<std::uint8_t> &recv_data);
+        bool parse_recv_abnormal_data(std::vector<std::uint8_t> &recv_data);
     };
 };
 

@@ -76,17 +76,20 @@ namespace protocol {
         
             return hex_digits[hex_value];
         }
-    
-        bool parse_recv_normal_data(std::vector<std::uint8_t> &recv_data)
+
+        std::uint8_t convert_ascii_to_hex(const char ascii_char)
         {
-            char telegram_number[2] = { '\0' };
-            char pc_number[2] = { '\0' };
-            
-        }
-    
-        bool parse_recv_abnormal_data(std::vector<std::uint8_t> &recv_data)
-        {
-            ;   // あと
+            assert((ascii_char >= '0' && ascii_char <= '9') || (ascii_char >= 'A' && ascii_char <= 'F') || (ascii_char >= 'a' && ascii_char <= 'f'));
+
+            if (ascii_char >= '0' && ascii_char <= '9') {
+                return static_cast<std::uint8_t>(ascii_char - '0');
+            }
+            else if (ascii_char >= 'A' && ascii_char <= 'F') {
+                return static_cast<std::uint8_t>(ascii_char - 'A' + 10);
+            }
+            else if (ascii_char >= 'a' && ascii_char <= 'f') {
+                return static_cast<std::uint8_t>(ascii_char - 'a' + 10);
+            }
         }
     
         long calculate_telegram_wait_to_ms(const std::uint8_t telegram_wait)
@@ -488,5 +491,52 @@ namespace protocol {
             internal_send_data_.push_back(static_cast<std::uint8_t>(ControlAsciiCode::CR));
             internal_send_data_.push_back(static_cast<std::uint8_t>(ControlAsciiCode::LF));
         }
+    }
+
+    bool ComputerLink::parse_recv_normal_data(std::vector<std::uint8_t> &recv_data)
+    {
+        char telegram_number[2] = { '\0' };
+        char pc_number[2] = { '\0' };
+
+        telegram_number[0] = static_cast<char>(internal_recv_data_[0]);
+        telegram_number[1] = static_cast<char>(internal_recv_data_[1]);
+        pc_number[0] = static_cast<char>(internal_recv_data_[2]);
+        pc_number[1] = static_cast<char>(internal_recv_data_[3]);
+
+        const size_t FRAME_HEADER_SIZE = 4;
+        size_t data_count = FRAME_HEADER_SIZE;
+            
+        while (static_cast<char>(internal_recv_data_[data_count]) != static_cast<char>(ControlAsciiCode::ETX)) {
+            recv_data.push_back(internal_recv_data_[data_count]);
+
+            data_count += 1;
+        }
+
+        if (append_checksum_flag_) {
+            std::uint8_t checksum = calculate_checksum(internal_recv_data_.data() + 1, data_count - 1);
+            std::uint8_t recved_checksum = (convert_ascii_to_hex(recv_checksum_buffer_[0]) << 4) | convert_ascii_to_hex(recv_checksum_buffer_[1]);            
+
+            if (checksum != recved_checksum) {
+                return false; // チェックサム不一致
+            }
+        }
+    
+        return true;
+    }
+
+    bool ComputerLink::parse_recv_abnormal_data(std::vector<std::uint8_t> &recv_data)
+    {
+        char telegram_number[2] = { '\0' };
+        char pc_number[2] = { '\0' };
+
+        telegram_number[0] = static_cast<char>(internal_recv_data_[0]);
+        telegram_number[1] = static_cast<char>(internal_recv_data_[1]);
+        pc_number[0] = static_cast<char>(internal_recv_data_[2]);
+        pc_number[1] = static_cast<char>(internal_recv_data_[3]);
+
+        recv_data.push_back(convert_ascii_to_hex((static_cast<char>(internal_recv_data_[4] >> 4) & 0x0FU) | (static_cast<char>(internal_recv_data_[4]) & 0x0FU)));
+
+        /** @note ここでは常にfalseを返す*/
+        return false;
     }
 }
