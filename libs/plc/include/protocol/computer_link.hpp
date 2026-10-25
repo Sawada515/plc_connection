@@ -48,7 +48,7 @@ namespace protocol {
             const char telegram_wait,
             const std::string &device_address,
             const std::uint8_t number_of_devices,
-            const std::vector<std::uint8_t> &recv_data
+            std::vector<std::uint8_t> &recv_data
         );
 
         bool qr(
@@ -66,7 +66,7 @@ namespace protocol {
             const char telegram_wait,
             const std::string &device_address,
             const std::uint8_t number_of_devices,
-            std::vector<std::uint8_t> &send_data
+            const std::vector<std::uint8_t> &send_data
         );
 
         bool ww(

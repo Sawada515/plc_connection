@@ -199,26 +199,125 @@ namespace protocol {
     
         internal_recv_data_.clear();
         internal_recv_data_.resize(1024);
+
+        bool recv_result = recv_frame();
+        bool parse_result = false;
     
-        if (recv_frame()) {
-            if (parse_recv_normal_data(recv_data)) {
-                create_transaction_data(false, branch_number, pc_number);
-
-                return true;
-            }
-            else {
-                create_transaction_data(true, branch_number, pc_number);
-
-                return false;
-            }
+        if (recv_result) {
+            parse_result = parse_recv_normal_data(recv_data);
         }
         else {
-            parse_recv_abnormal_data(recv_data);
-    
-            return false;
+            parse_result = parse_recv_abnormal_data(recv_data);
         }
+
+        create_transaction_data(recv_result && parse_result, branch_number, pc_number);
+
+        serial_.write(transaction_send_data_.data(), transaction_send_data_.size());
+
+        return recv_result && parse_result;
     }
+
+    bool ComputerLink::wr(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait,
+        const std::string &device_address,
+        const std::uint8_t number_of_devices,
+        std::vector<std::uint8_t> &recv_data
+    )
+    {
     
+        internal_send_data_.clear();
+    
+        std::format_to(
+            std::back_inserter(internal_send_data_),
+            COMMAND_BR_BASIC_FMT,
+            static_cast<char>(ControlAsciiCode::ENQ),
+            static_cast<char>((static_cast<std::uint16_t>(CommandCode::WR) >> 8) & 0x00FFU),
+            static_cast<char>((static_cast<std::uint16_t>(CommandCode::WR)) & 0x00FFU),
+            branch_number,
+            pc_number,
+            telegram_wait,
+            device_address,
+            number_of_devices
+        );
+    
+        finalize_send_data();
+    
+        serial_.write(internal_send_data_.data(), internal_send_data_.size());
+    
+        wait_ms(calculate_telegram_wait_to_ms(telegram_wait));
+    
+        internal_recv_data_.clear();
+        internal_recv_data_.resize(1024);
+
+        bool recv_result = recv_frame();
+        bool parse_result = false;
+    
+        if (recv_result) {
+            parse_result = parse_recv_normal_data(recv_data);
+        }
+        else {
+            parse_result = parse_recv_abnormal_data(recv_data);
+        }
+
+        create_transaction_data(recv_result && parse_result, branch_number, pc_number);
+
+        serial_.write(transaction_send_data_.data(), transaction_send_data_.size());
+
+        return recv_result && parse_result;
+    }
+
+    bool ComputerLink::qr(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait,
+        const std::string &device_address,
+        const std::uint8_t number_of_devices,
+        std::vector<std::uint8_t> &recv_data
+    ) 
+    {
+    
+        internal_send_data_.clear();
+    
+        std::format_to(
+            std::back_inserter(internal_send_data_),
+            COMMAND_BR_BASIC_FMT,
+            static_cast<char>(ControlAsciiCode::ENQ),
+            static_cast<char>((static_cast<std::uint16_t>(CommandCode::QR) >> 8) & 0x00FFU),
+            static_cast<char>((static_cast<std::uint16_t>(CommandCode::QR)) & 0x00FFU),
+            branch_number,
+            pc_number,
+            telegram_wait,
+            device_address,
+            number_of_devices
+        );
+    
+        finalize_send_data();
+    
+        serial_.write(internal_send_data_.data(), internal_send_data_.size());
+    
+        wait_ms(calculate_telegram_wait_to_ms(telegram_wait));
+    
+        internal_recv_data_.clear();
+        internal_recv_data_.resize(1024);
+
+        bool recv_result = recv_frame();
+        bool parse_result = false;
+    
+        if (recv_result) {
+            parse_result = parse_recv_normal_data(recv_data);
+        }
+        else {
+            parse_result = parse_recv_abnormal_data(recv_data);
+        }
+
+        create_transaction_data(recv_result && parse_result, branch_number, pc_number);
+
+        serial_.write(transaction_send_data_.data(), transaction_send_data_.size());
+
+        return recv_result && parse_result;
+    }
     
     
     // Private member 
