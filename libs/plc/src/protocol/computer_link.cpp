@@ -35,7 +35,9 @@ namespace protocol {
               先頭デバイスアドレス 5byte, デバイス点数 1byte
             @warning この形式が基本
         */
-        inline constexpr std::string_view COMMAND_BR_BASIC_FMT = "{:c}{:c}{:c}{:02X}{:02X}{:c}{}{:02X}";
+        inline constexpr std::string_view COMMAND_BR_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{}{:02X}";
+        inline constexpr std::string_view COMMAND_WR_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{}{:02X}";
+        inline constexpr std::string_view COMMAND_QR_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{}{:02X}";
     
         constexpr size_t ACK_RESPONSE_SIZE = 4;// 局番号 1byte, PC番号 1byte
         constexpr size_t NAK_RESPONSE_SIZE = 6;// 局番号 1byte, PC番号 1byte, エラーコード 2byte
@@ -94,7 +96,7 @@ namespace protocol {
     
         long calculate_telegram_wait_to_ms(const std::uint8_t telegram_wait)
         {
-            return static_cast<long>(telegram_wait) * 100;  // 100ms per unit
+            return static_cast<long>(convert_ascii_to_hex(telegram_wait) * 10);
         }
     
         /**
@@ -156,8 +158,8 @@ namespace protocol {
         , append_crlf_flag_(append_crlf_flag)
         , timeout_ms_(timeout_ms)
     {
-        internal_send_data_.reserve(1024);
-        internal_recv_data_.reserve(1024);
+        internal_send_data_.reserve(MAX_BUFFER_SIZE);
+        internal_recv_data_.reserve(MAX_BUFFER_SIZE);
 
         transaction_send_data_.reserve(7);
     
@@ -185,10 +187,10 @@ namespace protocol {
             std::back_inserter(internal_send_data_),
             COMMAND_BR_BASIC_FMT,
             static_cast<char>(ControlAsciiCode::ENQ),
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::BR) >> 8) & 0xFFU),
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::BR)) & 0xFFU),
             branch_number,
             pc_number,
+            static_cast<char>((static_cast<std::uint16_t>(CommandCode::BR) >> 8) & 0xFFU),
+            static_cast<char>((static_cast<std::uint16_t>(CommandCode::BR)) & 0xFFU),
             telegram_wait,
             device_address,
             number_of_devices
@@ -201,7 +203,6 @@ namespace protocol {
         wait_ms(calculate_telegram_wait_to_ms(telegram_wait));
     
         internal_recv_data_.clear();
-        internal_recv_data_.resize(1024);
 
         bool recv_result = recv_frame();
         bool parse_result = false;
@@ -212,6 +213,8 @@ namespace protocol {
         else {
             parse_result = parse_recv_abnormal_data(recv_data);
         }
+
+        transaction_send_data_.clear();
 
         create_transaction_data(recv_result && parse_result, branch_number, pc_number);
 
@@ -234,12 +237,12 @@ namespace protocol {
     
         std::format_to(
             std::back_inserter(internal_send_data_),
-            COMMAND_BR_BASIC_FMT,
+            COMMAND_WR_BASIC_FMT,
             static_cast<char>(ControlAsciiCode::ENQ),
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::WR) >> 8) & 0x00FFU),
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::WR)) & 0x00FFU),
             branch_number,
             pc_number,
+            static_cast<char>((static_cast<std::uint16_t>(CommandCode::WR) >> 8) & 0x00FFU),
+            static_cast<char>((static_cast<std::uint16_t>(CommandCode::WR)) & 0x00FFU),
             telegram_wait,
             device_address,
             number_of_devices
@@ -252,7 +255,6 @@ namespace protocol {
         wait_ms(calculate_telegram_wait_to_ms(telegram_wait));
     
         internal_recv_data_.clear();
-        internal_recv_data_.resize(1024);
 
         bool recv_result = recv_frame();
         bool parse_result = false;
@@ -263,6 +265,8 @@ namespace protocol {
         else {
             parse_result = parse_recv_abnormal_data(recv_data);
         }
+
+        transaction_send_data_.clear();
 
         create_transaction_data(recv_result && parse_result, branch_number, pc_number);
 
@@ -285,12 +289,12 @@ namespace protocol {
     
         std::format_to(
             std::back_inserter(internal_send_data_),
-            COMMAND_BR_BASIC_FMT,
+            COMMAND_QR_BASIC_FMT,
             static_cast<char>(ControlAsciiCode::ENQ),
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::QR) >> 8) & 0x00FFU),
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::QR)) & 0x00FFU),
             branch_number,
             pc_number,
+            static_cast<char>((static_cast<std::uint16_t>(CommandCode::QR) >> 8) & 0x00FFU),
+            static_cast<char>((static_cast<std::uint16_t>(CommandCode::QR)) & 0x00FFU),
             telegram_wait,
             device_address,
             number_of_devices
@@ -303,7 +307,6 @@ namespace protocol {
         wait_ms(calculate_telegram_wait_to_ms(telegram_wait));
     
         internal_recv_data_.clear();
-        internal_recv_data_.resize(1024);
 
         bool recv_result = recv_frame();
         bool parse_result = false;
@@ -314,6 +317,8 @@ namespace protocol {
         else {
             parse_result = parse_recv_abnormal_data(recv_data);
         }
+
+        transaction_send_data_.clear();
 
         create_transaction_data(recv_result && parse_result, branch_number, pc_number);
 
@@ -327,7 +332,7 @@ namespace protocol {
     void ComputerLink::finalize_send_data()
     {
         if (append_checksum_flag_) {
-            std::uint8_t checksum = calculate_checksum(internal_send_data_.data() + 1, internal_send_data_.size());
+            std::uint8_t checksum = calculate_checksum(internal_send_data_.data() + 1, internal_send_data_.size() - 1);
     
             internal_send_data_.push_back(convert_hex_to_ascii((checksum >> 4) & 0x0FU));
             internal_send_data_.push_back(convert_hex_to_ascii((checksum) & 0x0FU));
@@ -347,7 +352,7 @@ namespace protocol {
     
         while (total_bytes_read < max_read_size) {
             if (std::chrono::steady_clock::now() >= deadline) {
-                return false; // タイムアウト
+                return -1; // タイムアウト
             }
     
             ssize_t bytes_read = serial_.read(buffer + total_bytes_read, 1);
@@ -403,11 +408,12 @@ namespace protocol {
         }
     
         if (first_char == static_cast<std::uint8_t>(ControlAsciiCode::STX)) {
-            internal_recv_data_.resize(internal_recv_data_.capacity());
+            internal_recv_data_.resize(MAX_BUFFER_SIZE);
     
             ssize_t ret = read_until(internal_recv_data_.data(), internal_recv_data_.size(), static_cast<char>(ControlAsciiCode::ETX));
             if (ret <= 0) {
                 internal_recv_data_.clear();
+
                 return false;
             }
     
@@ -427,7 +433,7 @@ namespace protocol {
             }
     
             if (append_crlf_flag_) {
-                serial_.read(discard_buffer, 2);
+                read_until(discard_buffer, 2, static_cast<char>(ControlAsciiCode::LF));
             }
     
             return true;
@@ -438,6 +444,7 @@ namespace protocol {
             ssize_t ret = serial_.read(internal_recv_data_.data(), ACK_RESPONSE_SIZE);
             if (ret != ACK_RESPONSE_SIZE) {
                 internal_recv_data_.clear();
+
                 return false;
             }
     
@@ -453,11 +460,12 @@ namespace protocol {
             ssize_t ret = serial_.read(internal_recv_data_.data(), NAK_RESPONSE_SIZE);
             if (ret != NAK_RESPONSE_SIZE) {
                 internal_recv_data_.clear();
+
                 return false;
             }
     
             if (append_crlf_flag_) {
-                serial_.read(discard_buffer, 2);
+                read_until(discard_buffer, 2, static_cast<char>(ControlAsciiCode::LF));
             }
     
             return false;
@@ -470,7 +478,7 @@ namespace protocol {
     {
         if (!is_error) {
             std::format_to(
-                std::back_inserter(internal_send_data_),
+                std::back_inserter(transaction_send_data_),
                 TRANSACTION_FORMAT,
                 static_cast<char>(ControlAsciiCode::ACK),
                 branch_number,
@@ -479,7 +487,7 @@ namespace protocol {
         }
         else {
             std::format_to(
-                std::back_inserter(internal_send_data_),
+                std::back_inserter(transaction_send_data_),
                 TRANSACTION_FORMAT,
                 static_cast<char>(ControlAsciiCode::NAK),
                 branch_number,
@@ -488,8 +496,8 @@ namespace protocol {
         }
 
         if (append_crlf_flag_) {
-            internal_send_data_.push_back(static_cast<std::uint8_t>(ControlAsciiCode::CR));
-            internal_send_data_.push_back(static_cast<std::uint8_t>(ControlAsciiCode::LF));
+            transaction_send_data_.push_back(static_cast<std::uint8_t>(ControlAsciiCode::CR));
+            transaction_send_data_.push_back(static_cast<std::uint8_t>(ControlAsciiCode::LF));
         }
     }
 
@@ -497,6 +505,8 @@ namespace protocol {
     {
         char telegram_number[2] = { '\0' };
         char pc_number[2] = { '\0' };
+
+        recv_data.clear();
 
         telegram_number[0] = static_cast<char>(internal_recv_data_[0]);
         telegram_number[1] = static_cast<char>(internal_recv_data_[1]);
@@ -506,14 +516,14 @@ namespace protocol {
         const size_t FRAME_HEADER_SIZE = 4;
         size_t data_count = FRAME_HEADER_SIZE;
             
-        while (static_cast<char>(internal_recv_data_[data_count]) != static_cast<char>(ControlAsciiCode::ETX)) {
+        while (data_count < internal_recv_data_.size() && static_cast<char>(internal_recv_data_[data_count]) != static_cast<char>(ControlAsciiCode::ETX)) {
             recv_data.push_back(internal_recv_data_[data_count]);
 
             data_count += 1;
         }
 
         if (append_checksum_flag_) {
-            std::uint8_t checksum = calculate_checksum(internal_recv_data_.data() + 1, data_count - 1);
+            std::uint8_t checksum = calculate_checksum(internal_recv_data_.data(), data_count + 1);
             std::uint8_t recved_checksum = (convert_ascii_to_hex(recv_checksum_buffer_[0]) << 4) | convert_ascii_to_hex(recv_checksum_buffer_[1]);            
 
             if (checksum != recved_checksum) {
@@ -529,12 +539,24 @@ namespace protocol {
         char telegram_number[2] = { '\0' };
         char pc_number[2] = { '\0' };
 
+        recv_data.clear();
+
+        if (internal_recv_data_.size() < 6) {
+            return false;   /** @note タイムアウトの可能性 */
+        }
+
         telegram_number[0] = static_cast<char>(internal_recv_data_[0]);
         telegram_number[1] = static_cast<char>(internal_recv_data_[1]);
         pc_number[0] = static_cast<char>(internal_recv_data_[2]);
         pc_number[1] = static_cast<char>(internal_recv_data_[3]);
 
-        recv_data.push_back(convert_ascii_to_hex((static_cast<char>(internal_recv_data_[4] >> 4) & 0x0FU) | (static_cast<char>(internal_recv_data_[4]) & 0x0FU)));
+        recv_data.push_back(
+            (
+                (convert_ascii_to_hex((static_cast<char>(internal_recv_data_[4]))) << 4) |
+                convert_ascii_to_hex((static_cast<char>(internal_recv_data_[5])))
+            )
+        );
+        
 
         /** @note ここでは常にfalseを返す*/
         return false;

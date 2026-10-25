@@ -184,6 +184,8 @@ namespace protocol {
 
         int timeout_ms_;
 
+        const int MAX_BUFFER_SIZE = 1024;
+
         size_t read_until(std::uint8_t* buffer, const size_t max_read_size, const char delimiter);
 
         void finalize_send_data();
