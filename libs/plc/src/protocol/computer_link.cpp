@@ -37,12 +37,27 @@ namespace protocol
               先頭デバイスアドレス 5byte, デバイス点数 1byte
             @warning この形式が基本
         */
-        inline constexpr std::string_view COMMAND_BR_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{}{:02X}";
-        inline constexpr std::string_view COMMAND_WR_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{}{:02X}";
-        inline constexpr std::string_view COMMAND_QR_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{}{:02X}";
+        inline constexpr std::string_view COMMAND_BR_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:.5}{:02X}";
+        inline constexpr std::string_view COMMAND_WR_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:.5}{:02X}";
+        inline constexpr std::string_view COMMAND_QR_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:.7}{:02X}";
 
-        inline constexpr std::string_view COMMAND_BW_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{}{:02X}";
-        inline constexpr std::string_view COMMAND_WW_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{}{:02X}";
+        inline constexpr std::string_view COMMAND_BW_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:.5}{:02X}";
+        inline constexpr std::string_view COMMAND_WW_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:.5}{:02X}";
+        inline constexpr std::string_view COMMAND_QW_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:.7}{:02X}";
+
+        inline constexpr std::string_view COMMAND_BT_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:02X}";
+        inline constexpr std::string_view COMMAND_BT_PYALOAD_FMT = "{:.5}{:c}";
+        inline constexpr std::string_view COMMAND_WT_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:02X}";
+        inline constexpr std::string_view COMMAND_WT_PYALOAD_FMT = "{:.5}{:c}";
+        inline constexpr std::string_view COMMAND_QT_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:02X}";
+        inline constexpr std::string_view COMMAND_QT_PYALOAD_FMT = "{:.7}{:c}";
+
+        inline constexpr std::string_view COMMAND_RR_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}";
+        inline constexpr std::string_view COMMAND_RS_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}";
+
+        inline constexpr std::string_view COMMAND_PC_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}";
+
+        inline constexpr std::string_view COMMAND_GW_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:c}";
 
         constexpr size_t ACK_RESPONSE_SIZE = 4; // 局番号 1byte, PC番号 1byte
         constexpr size_t NAK_RESPONSE_SIZE = 6; // 局番号 1byte, PC番号 1byte, エラーコード 2byte
