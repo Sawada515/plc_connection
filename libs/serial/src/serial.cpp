@@ -9,7 +9,7 @@
  * 
  */
 
-#include "serial.hpp"
+#include <serial/serial.hpp>
 
 #include <unistd.h>
 #include <poll.h>
@@ -26,7 +26,7 @@ Serial::Serial(const std::string& device_name, baudrate_t baudrate, int timeout_
     , timeout_ms_(timeout_ms)
     , fd_(-1)
     {
-        assert(timeout_ms_ < 0);
+        assert(timeout_ms_ > 0);
     }
 
 Serial::~Serial()

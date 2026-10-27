@@ -6,7 +6,7 @@
  * @note /dev/ttyUSB0からデータを取得しターミナルに表示
  */
 
-#include "serial.hpp"
+#include <serial/serial.hpp>
 
 #include <errno.h>
 
@@ -16,7 +16,7 @@ constexpr size_t BUFFER_SIZE = 256;
 
 int main()
 {
-    Serial serial("/dev/ttyUSB0", Serial::BAUDRATE_9600);
+    Serial serial("/dev/ttyUSB0", Serial::baudrate_t::BAUDRATE_9600, 100);
     if (!serial.open()) {
         printf("Failed to open serial port\n");
 
@@ -30,7 +30,7 @@ int main()
     serial.write(reinterpret_cast<const std::uint8_t*>("Serial Class Test\n"), 18);
 
     while (true) {
-        ssize_t bytes_read = serial.read(buffer, BUFFER_SIZE, 1000); // 1秒のタイムアウト
+        ssize_t bytes_read = serial.read(buffer, BUFFER_SIZE);
         if (bytes_read < 0) {
             printf("Error reading from serial port\n");
             printf("Error code: %d\n", errno);

@@ -13,5 +13,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_subdirectory(libs/serial)
-add_subdirectory(libs/plc)
+#add_subdirectory(libs/plc)
+
 add_subdirectory(app)
+
+add_subdirectory(test/serial)
