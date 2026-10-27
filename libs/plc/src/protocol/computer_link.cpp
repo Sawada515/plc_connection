@@ -10,8 +10,8 @@
  *
  */
 
-#include "protocol/computer_link.hpp"
-#include "serial/serial.hpp"
+#include <protocol/computer_link.hpp>
+#include <serial/serial.hpp>
 
 #include <assert.h>
 #include <time.h>
@@ -197,7 +197,7 @@ namespace protocol
         serial_.close();
     }
 
-    bool ComputerLink::br(
+    int ComputerLink::br(
         const std::uint8_t branch_number,
         const std::uint8_t pc_number,
         const char telegram_wait,
@@ -249,7 +249,7 @@ namespace protocol
         return recv_result && parse_result;
     }
 
-    bool ComputerLink::wr(
+    int ComputerLink::wr(
         const std::uint8_t branch_number,
         const std::uint8_t pc_number,
         const char telegram_wait,
@@ -301,7 +301,7 @@ namespace protocol
         return recv_result && parse_result;
     }
 
-    bool ComputerLink::qr(
+    int ComputerLink::qr(
         const std::uint8_t branch_number,
         const std::uint8_t pc_number,
         const char telegram_wait,
@@ -609,5 +609,26 @@ namespace protocol
 
         /** @note ここでは常にfalseを返す*/
         return false;
+    }
+
+    ComputerLink::CommandStatus ComputerLink::convert_error_code_to_command_status(std::uint8_t error_code)
+    {
+        switch (error_code)
+        {
+            case 0x02:
+                return CommandStatus::ChecksumError;
+            case 0x03:
+                return CommandStatus::ProtocolError;
+            case 0x06:
+                return CommandStatus::CharacterPartError;
+            case 0x07:
+                return CommandStatus::CharacterError;
+            case 0x0A:
+                return CommandStatus::PcNumberError;
+            case 0x18:
+                return CommandStatus::RemoteError;
+            default:
+                return CommandStatus::UnknownError;
+        }
     }
 }

@@ -12,7 +12,7 @@
 #ifndef COMPUTER_LINK_HPP_
 #define COMPUTER_LINK_HPP_
 
-#include "serial/serial.hpp"
+#include <serial/serial.hpp>
 
 #include <cstdint>
 #include <string>
@@ -22,6 +22,19 @@
 namespace protocol {
     class ComputerLink {
       public:
+        enum class CommandStatus : int {
+            Success             = 0,
+            Timeout             = -1,
+            UnknownError        = -2,
+
+            // 以下PLC固有のエラー
+            ChecksumError       = 0x02,
+            ProtocolError       = 0x03,
+            CharacterPartError  = 0x06,
+            CharacterError      = 0x07, 
+            PcNumberError       = 0x0A,    /* @note 同じ鰓内容で0x0Aもしくは0x10が返ってくる可能性があるが0x0Aを使用する */
+            RemoteError         = 0x18
+        };  // TODO 数字からエラーコードへの変換関数を作成する
     
         /**
          * @brief Construct a new ComputerLink object
@@ -33,7 +46,7 @@ namespace protocol {
          */
         ~ComputerLink();
 
-        bool br(
+        [[nodiscard]] CommandStatus br(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
@@ -42,7 +55,7 @@ namespace protocol {
             std::vector<std::uint8_t> &recv_data
         );
 
-        bool wr(
+        [[nodiscard]] CommandStatus wr(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
@@ -51,7 +64,7 @@ namespace protocol {
             std::vector<std::uint8_t> &recv_data
         );
 
-        bool qr(
+        [[nodiscard]] CommandStatus qr(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
@@ -60,7 +73,7 @@ namespace protocol {
             std::vector<std::uint8_t> &recv_data
         ); 
 
-        bool bw(
+        [[nodiscard]] CommandStatus bw(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
@@ -69,7 +82,7 @@ namespace protocol {
             const std::vector<std::uint8_t> &send_data
         );
 
-        bool ww(
+        [[nodiscard]] CommandStatus ww(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
@@ -78,7 +91,7 @@ namespace protocol {
             const std::vector<std::uint8_t> &send_data
         );
 
-        bool qw(
+        [[nodiscard]] CommandStatus qw(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
@@ -87,7 +100,7 @@ namespace protocol {
             std::vector<std::uint8_t> &recv_data
         );
 
-        bool bt(
+        [[nodiscard]] CommandStatus bt(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
@@ -96,7 +109,7 @@ namespace protocol {
             const std::vector<std::uint32_t> &send_data
         );
 
-        bool wt(
+        [[nodiscard]] CommandStatus wt(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
@@ -105,7 +118,7 @@ namespace protocol {
             const std::vector<std::uint32_t> &send_data
         );
 
-        bool qt(
+        [[nodiscard]] CommandStatus qt(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
@@ -114,26 +127,26 @@ namespace protocol {
             std::vector<std::uint32_t> &send_data
         );
 
-        bool rr(
+        [[nodiscard]] CommandStatus rr(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait
         );
 
-        bool rs(
+        [[nodiscard]] CommandStatus rs(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait
         );
 
-        bool pc(
+        [[nodiscard]] CommandStatus pc(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
             std::vector<std::uint8_t> &recv_data
         );
 
-        bool gw(
+        [[nodiscard]] CommandStatus gw(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
@@ -196,6 +209,8 @@ namespace protocol {
 
         bool parse_recv_normal_data(std::vector<std::uint8_t> &recv_data);
         bool parse_recv_abnormal_data(std::vector<std::uint8_t> &recv_data);
+
+        CommandStatus convert_error_code_to_command_status(std::uint8_t error_code);
     };
 };
 
