@@ -68,28 +68,28 @@ namespace protocol
 
             switch (baudrate_key)
             {
-            case 0:
-                return Serial::baudrate_t::BAUDRATE_300;
-            case 1:
-                return Serial::baudrate_t::BAUDRATE_600;
-            case 2:
-                return Serial::baudrate_t::BAUDRATE_1200;
-            case 3:
-                return Serial::baudrate_t::BAUDRATE_2400;
-            case 4:
-                return Serial::baudrate_t::BAUDRATE_4800;
-            case 5:
-                return Serial::baudrate_t::BAUDRATE_9600;
-            case 6:
-                return Serial::baudrate_t::BAUDRATE_19200;
-            case 7:
-                return Serial::baudrate_t::BAUDRATE_38400;
-            default:
-                /* 想定外 */
-                /** @note assert()でチェックするので入るはずがない */
-                assert(false);
-
-                break;
+                case 0:
+                    return Serial::baudrate_t::BAUDRATE_300;
+                case 1:
+                    return Serial::baudrate_t::BAUDRATE_600;
+                case 2:
+                    return Serial::baudrate_t::BAUDRATE_1200;
+                case 3:
+                    return Serial::baudrate_t::BAUDRATE_2400;
+                case 4:
+                    return Serial::baudrate_t::BAUDRATE_4800;
+                case 5:
+                    return Serial::baudrate_t::BAUDRATE_9600;
+                case 6:
+                    return Serial::baudrate_t::BAUDRATE_19200;
+                case 7:
+                    return Serial::baudrate_t::BAUDRATE_38400;
+                default:
+                    /* 想定外 */
+                    /** @note assert()でチェックするので入るはずがない */
+                    assert(false);
+    
+                    break;
             }
         }
 
@@ -197,7 +197,7 @@ namespace protocol
         serial_.close();
     }
 
-    int ComputerLink::br(
+    ComputerLink::CommandStatus ComputerLink::br(
         const std::uint8_t branch_number,
         const std::uint8_t pc_number,
         const char telegram_wait,
@@ -228,8 +228,8 @@ namespace protocol
 
         internal_recv_data_.clear();
 
-        bool recv_result = recv_frame();
-        bool parse_result = false;
+        CommandStatus recv_result = recv_frame();
+        CommandStatus parse_result = false;
 
         if (recv_result)
         {
@@ -249,7 +249,7 @@ namespace protocol
         return recv_result && parse_result;
     }
 
-    int ComputerLink::wr(
+    ComputerLink::CommandStatus ComputerLink::wr(
         const std::uint8_t branch_number,
         const std::uint8_t pc_number,
         const char telegram_wait,
@@ -280,8 +280,8 @@ namespace protocol
 
         internal_recv_data_.clear();
 
-        bool recv_result = recv_frame();
-        bool parse_result = false;
+        CommandStatus recv_result = recv_frame();
+        CommandStatus parse_result = false;
 
         if (recv_result)
         {
@@ -301,7 +301,7 @@ namespace protocol
         return recv_result && parse_result;
     }
 
-    int ComputerLink::qr(
+    ComputerLink::CommandStatus ComputerLink::qr(
         const std::uint8_t branch_number,
         const std::uint8_t pc_number,
         const char telegram_wait,
@@ -332,8 +332,8 @@ namespace protocol
 
         internal_recv_data_.clear();
 
-        bool recv_result = recv_frame();
-        bool parse_result = false;
+        CommandStatus recv_result = recv_frame();
+        CommandStatus parse_result = false;
 
         if (recv_result)
         {
@@ -406,13 +406,9 @@ namespace protocol
         return total_bytes_read;
     }
 
-    // 戻り値とベクターの中身を必ず確認
-    // trueの場合は正常データ
-    // falseの場合は異常データの可能性とタイムアウトの可能性があるのでvectorの中身必ずを確認すること
-    bool ComputerLink::recv_frame()
+    ComputerLink::CommandStatus ComputerLink::recv_frame()
     {
-        // 1バイト読み取り用バッファ
-        std::uint8_t first_char = 0;
+        std::uint8_t first_char = 0; /** @brief 正常データの先頭文字読み取り用 */
         std::uint8_t discard_buffer[2];
 
         internal_recv_data_.clear();
@@ -427,7 +423,7 @@ namespace protocol
         {
             if (std::chrono::steady_clock::now() >= deadline)
             {
-                return false; // タイムアウト
+                return CommandStatus::Timeout;
             }
 
             ssize_t bytes_read = serial_.read(&first_char, 1);
@@ -437,7 +433,7 @@ namespace protocol
             }
             if (bytes_read < 0)
             {
-                return false;
+                return CommandStatus::UnknownError;
             }
 
             wait_ms(2);
@@ -448,11 +444,16 @@ namespace protocol
             internal_recv_data_.resize(MAX_BUFFER_SIZE);
 
             ssize_t ret = read_until(internal_recv_data_.data(), internal_recv_data_.size(), static_cast<char>(ControlAsciiCode::ETX));
-            if (ret <= 0)
+            if (ret == -1)
             {
                 internal_recv_data_.clear();
 
-                return false;
+                return CommandStatus::Timeout;
+            }
+            else if (ret == 0) {
+                internal_recv_data_.clear();
+
+                return CommandStatus::UnknownError;
             }
 
             internal_recv_data_.resize(static_cast<size_t>(ret));
@@ -465,7 +466,7 @@ namespace protocol
                 {
                     internal_recv_data_.clear();
 
-                    return false;
+                    return CommandStatus::UnknownError;
                 }
 
                 recv_checksum_buffer_[0] = checksum_str[0];
@@ -477,7 +478,7 @@ namespace protocol
                 read_until(discard_buffer, 2, static_cast<char>(ControlAsciiCode::LF));
             }
 
-            return true;
+            return CommandStatus::Success;
         }
         else if (first_char == static_cast<std::uint8_t>(ControlAsciiCode::ACK))
         {
@@ -488,7 +489,7 @@ namespace protocol
             {
                 internal_recv_data_.clear();
 
-                return false;
+                return CommandStatus::UnknownError;
             }
 
             if (append_crlf_flag_)
@@ -496,7 +497,7 @@ namespace protocol
                 read_until(discard_buffer, 2, static_cast<char>(ControlAsciiCode::LF));
             }
 
-            return true;
+            return CommandStatus::Success;
         }
         else if (first_char == static_cast<std::uint8_t>(ControlAsciiCode::NAK))
         {
@@ -507,7 +508,7 @@ namespace protocol
             {
                 internal_recv_data_.clear();
 
-                return false;
+                return CommandStatus::UnknownError;
             }
 
             if (append_crlf_flag_)
@@ -515,10 +516,10 @@ namespace protocol
                 read_until(discard_buffer, 2, static_cast<char>(ControlAsciiCode::LF));
             }
 
-            return false;
+            return CommandStatus::HasError;
         }
 
-        return false;
+        return CommandStatus::UnknownError;
     }
 
     void ComputerLink::create_transaction_data(bool is_error, std::uint8_t branch_number, std::uint8_t pc_number)
@@ -549,7 +550,7 @@ namespace protocol
         }
     }
 
-    bool ComputerLink::parse_recv_normal_data(std::vector<std::uint8_t> &recv_data)
+    ComputerLink::CommandStatus ComputerLink::parse_recv_normal_data(std::vector<std::uint8_t> &recv_data)
     {
         char telegram_number[2] = {'\0'};
         char pc_number[2] = {'\0'};
@@ -585,7 +586,7 @@ namespace protocol
         return true;
     }
 
-    bool ComputerLink::parse_recv_abnormal_data(std::vector<std::uint8_t> &recv_data)
+    ComputerLink::CommandStatus ComputerLink::parse_recv_abnormal_data(std::vector<std::uint8_t> &recv_data)
     {
         char telegram_number[2] = {'\0'};
         char pc_number[2] = {'\0'};
@@ -594,7 +595,7 @@ namespace protocol
 
         if (internal_recv_data_.size() < 6)
         {
-            return false; /** @note タイムアウトの可能性 */
+            return CommandStatus::Timeout; /** @note タイムアウトの可能性 */
         }
 
         telegram_number[0] = static_cast<char>(internal_recv_data_[0]);
@@ -603,9 +604,9 @@ namespace protocol
         pc_number[1] = static_cast<char>(internal_recv_data_[3]);
 
         recv_data.push_back(
-            (
-                (convert_ascii_to_hex((static_cast<char>(internal_recv_data_[4]))) << 4) |
-                convert_ascii_to_hex((static_cast<char>(internal_recv_data_[5])))));
+            (convert_ascii_to_hex((static_cast<char>(internal_recv_data_[4]))) << 4) |
+            convert_ascii_to_hex(static_cast<char>(internal_recv_data_[5]))
+        );
 
         /** @note ここでは常にfalseを返す*/
         return false;

@@ -27,6 +27,9 @@ namespace protocol {
             Timeout             = -1,
             UnknownError        = -2,
 
+            // 内部用
+            HasError            = -3,
+
             // 以下PLC固有のエラー
             ChecksumError       = 0x02,
             ProtocolError       = 0x03,
@@ -203,14 +206,14 @@ namespace protocol {
 
         void finalize_send_data();
 
-        bool recv_frame();
+        CommandStatus recv_frame();
 
-        void create_transaction_data(bool is_error, std::uint8_t branch_number, std::uint8_t pc_number);
-
-        bool parse_recv_normal_data(std::vector<std::uint8_t> &recv_data);
-        bool parse_recv_abnormal_data(std::vector<std::uint8_t> &recv_data);
+        CommandStatus parse_recv_normal_data(std::vector<std::uint8_t> &recv_data);
+        CommandStatus parse_recv_abnormal_data(std::vector<std::uint8_t> &recv_data);
 
         CommandStatus convert_error_code_to_command_status(std::uint8_t error_code);
+
+        void create_transaction_data(bool is_error, std::uint8_t branch_number, std::uint8_t pc_number);
     };
 };
 
