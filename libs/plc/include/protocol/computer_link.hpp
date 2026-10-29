@@ -187,6 +187,7 @@ namespace protocol {
 
         bool append_checksum_flag_;
         bool append_crlf_flag_;
+
         std::string device_name_;
 
         Serial serial_;
@@ -213,7 +214,7 @@ namespace protocol {
 
         CommandStatus convert_error_code_to_command_status(std::uint8_t error_code);
 
-        void create_transaction_data(bool is_error, std::uint8_t branch_number, std::uint8_t pc_number);
+        void create_transaction_data(bool has_error, std::uint8_t branch_number, std::uint8_t pc_number);
     };
 };
 

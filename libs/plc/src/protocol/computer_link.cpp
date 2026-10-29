@@ -229,24 +229,47 @@ namespace protocol
         internal_recv_data_.clear();
 
         CommandStatus recv_result = recv_frame();
-        CommandStatus parse_result = false;
+        CommandStatus parse_result{};
 
-        if (recv_result)
-        {
+        if (recv_result == CommandStatus::Success) {
             parse_result = parse_recv_normal_data(recv_data);
         }
-        else
-        {
+        else if (recv_result == CommandStatus::HasError) {
             parse_result = parse_recv_abnormal_data(recv_data);
         }
 
-        transaction_send_data_.clear();
+        CommandStatus ret{};
+        bool has_error{};
 
-        create_transaction_data(recv_result && parse_result, branch_number, pc_number);
+        if (recv_result == CommandStatus::Success && parse_result == CommandStatus::Success) {
+            ret = CommandStatus::Success;
+
+            has_error = false;
+        }
+        else if (recv_result == CommandStatus::Success && parse_result ==) {
+            //ここから
+        }
+        else if (recv_result == CommandStatus::Timeout) {
+            ret = CommandStatus::Timeout;
+        }
+
+
+        if (recv_result == CommandStatus::Success) {
+            transaction_send_data_.clear();
+
+            create_transaction_data(has_error, branch_number, pc_number);
+        }
 
         serial_.write(transaction_send_data_.data(), transaction_send_data_.size());
 
-        return recv_result && parse_result;
+        // ここから
+
+        if (recv_result != CommandStatus::Success) {
+            ret = recv_result;
+        }
+        else
+
+        return parse_result;
     }
 
     ComputerLink::CommandStatus ComputerLink::wr(
@@ -346,7 +369,7 @@ namespace protocol
 
         transaction_send_data_.clear();
 
-        create_transaction_data(recv_result && parse_result, branch_number, pc_number);
+        create_transaction_data(recv_result, branch_number, pc_number);
 
         serial_.write(transaction_send_data_.data(), transaction_send_data_.size());
 
@@ -356,16 +379,14 @@ namespace protocol
     // Private member
     void ComputerLink::finalize_send_data()
     {
-        if (append_checksum_flag_)
-        {
+        if (append_checksum_flag_) {
             std::uint8_t checksum = calculate_checksum(internal_send_data_.data() + 1, internal_send_data_.size() - 1);
 
             internal_send_data_.push_back(convert_hex_to_ascii((checksum >> 4) & 0x0FU));
             internal_send_data_.push_back(convert_hex_to_ascii((checksum) & 0x0FU));
         }
 
-        if (append_crlf_flag_)
-        {
+        if (append_crlf_flag_) {
             internal_send_data_.push_back(static_cast<std::uint8_t>(ControlAsciiCode::CR));
             internal_send_data_.push_back(static_cast<std::uint8_t>(ControlAsciiCode::LF));
         }
@@ -377,28 +398,23 @@ namespace protocol
 
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms_);
 
-        while (total_bytes_read < max_read_size)
-        {
-            if (std::chrono::steady_clock::now() >= deadline)
-            {
+        while (total_bytes_read < max_read_size) {
+            if (std::chrono::steady_clock::now() >= deadline) {
                 return -1; // タイムアウト
             }
 
             ssize_t bytes_read = serial_.read(buffer + total_bytes_read, 1);
 
-            if (bytes_read < 0)
-            {
+            if (bytes_read < 0) {
                 return total_bytes_read;
             }
-            else if (bytes_read == 0)
-            {
+            else if (bytes_read == 0) {
                 continue;
             }
 
             total_bytes_read += static_cast<size_t>(bytes_read);
 
-            if (buffer[total_bytes_read - 1] == static_cast<std::uint8_t>(delimiter))
-            {
+            if (buffer[total_bytes_read - 1] == static_cast<std::uint8_t>(delimiter)) {
                 break; // デリミタに到達
             }
         }
@@ -419,33 +435,40 @@ namespace protocol
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms_);
 
         // 先頭文字 (STX / ACK / NAK) の受信待機
-        while (true)
-        {
-            if (std::chrono::steady_clock::now() >= deadline)
-            {
+        while (true) {
+            unsigned char try_count = 0;
+            constexpr MAX_TRY_COUNT = 15;
+
+            if (std::chrono::steady_clock::now() >= deadline) {
                 return CommandStatus::Timeout;
             }
 
             ssize_t bytes_read = serial_.read(&first_char, 1);
-            if (bytes_read > 0)
-            {
-                break;
+            if (bytes_read > 0) {
+                if (first_char == static_cast<std::uint8_t>(ControlAsciiCode::STX) ||
+                    first_char == static_cast<std::uint8_t>(ControlAsciiCode::ACK) ||
+                    first_char == static_cast<std::uint8_t>(ControlAsciiCode::NAK)) {
+
+                    break; // 正常データの先頭文字を受信
+                }
+
+                try_count += 1;
+                if (MAX_TRY_COUNT >= try_count) {
+                    return CommandStatus::UnknownError; 
+                }
             }
-            if (bytes_read < 0)
-            {
+            if (bytes_read < 0) {
                 return CommandStatus::UnknownError;
             }
 
             wait_ms(2);
         }
 
-        if (first_char == static_cast<std::uint8_t>(ControlAsciiCode::STX))
-        {
+        if (first_char == static_cast<std::uint8_t>(ControlAsciiCode::STX)) {
             internal_recv_data_.resize(MAX_BUFFER_SIZE);
 
             ssize_t ret = read_until(internal_recv_data_.data(), internal_recv_data_.size(), static_cast<char>(ControlAsciiCode::ETX));
-            if (ret == -1)
-            {
+            if (ret == -1) {
                 internal_recv_data_.clear();
 
                 return CommandStatus::Timeout;
@@ -458,12 +481,10 @@ namespace protocol
 
             internal_recv_data_.resize(static_cast<size_t>(ret));
 
-            if (append_checksum_flag_)
-            {
+            if (append_checksum_flag_) {
                 char checksum_str[2];
                 ssize_t checksum_read = serial_.read(reinterpret_cast<std::uint8_t *>(checksum_str), 2);
-                if (checksum_read != 2)
-                {
+                if (checksum_read != 2) {
                     internal_recv_data_.clear();
 
                     return CommandStatus::UnknownError;
@@ -473,46 +494,39 @@ namespace protocol
                 recv_checksum_buffer_[1] = checksum_str[1];
             }
 
-            if (append_crlf_flag_)
-            {
+            if (append_crlf_flag_) {
                 read_until(discard_buffer, 2, static_cast<char>(ControlAsciiCode::LF));
             }
 
             return CommandStatus::Success;
         }
-        else if (first_char == static_cast<std::uint8_t>(ControlAsciiCode::ACK))
-        {
+        else if (first_char == static_cast<std::uint8_t>(ControlAsciiCode::ACK)) {
             internal_recv_data_.resize(ACK_RESPONSE_SIZE);
 
             ssize_t ret = serial_.read(internal_recv_data_.data(), ACK_RESPONSE_SIZE);
-            if (ret != ACK_RESPONSE_SIZE)
-            {
+            if (ret != ACK_RESPONSE_SIZE) {
                 internal_recv_data_.clear();
 
                 return CommandStatus::UnknownError;
             }
 
-            if (append_crlf_flag_)
-            {
+            if (append_crlf_flag_) {
                 read_until(discard_buffer, 2, static_cast<char>(ControlAsciiCode::LF));
             }
 
             return CommandStatus::Success;
         }
-        else if (first_char == static_cast<std::uint8_t>(ControlAsciiCode::NAK))
-        {
+        else if (first_char == static_cast<std::uint8_t>(ControlAsciiCode::NAK)) {
             internal_recv_data_.resize(NAK_RESPONSE_SIZE);
 
             ssize_t ret = serial_.read(internal_recv_data_.data(), NAK_RESPONSE_SIZE);
-            if (ret != NAK_RESPONSE_SIZE)
-            {
+            if (ret != NAK_RESPONSE_SIZE) {
                 internal_recv_data_.clear();
 
                 return CommandStatus::UnknownError;
             }
 
-            if (append_crlf_flag_)
-            {
+            if (append_crlf_flag_) {
                 read_until(discard_buffer, 2, static_cast<char>(ControlAsciiCode::LF));
             }
 
@@ -522,10 +536,9 @@ namespace protocol
         return CommandStatus::UnknownError;
     }
 
-    void ComputerLink::create_transaction_data(bool is_error, std::uint8_t branch_number, std::uint8_t pc_number)
+    void ComputerLink::create_transaction_data(bool has_error, std::uint8_t branch_number, std::uint8_t pc_number)
     {
-        if (!is_error)
-        {
+        if (has_error == false) {
             std::format_to(
                 std::back_inserter(transaction_send_data_),
                 TRANSACTION_FORMAT,
@@ -533,8 +546,7 @@ namespace protocol
                 branch_number,
                 pc_number);
         }
-        else
-        {
+        else {
             std::format_to(
                 std::back_inserter(transaction_send_data_),
                 TRANSACTION_FORMAT,
@@ -543,8 +555,7 @@ namespace protocol
                 pc_number);
         }
 
-        if (append_crlf_flag_)
-        {
+        if (append_crlf_flag_) {
             transaction_send_data_.push_back(static_cast<std::uint8_t>(ControlAsciiCode::CR));
             transaction_send_data_.push_back(static_cast<std::uint8_t>(ControlAsciiCode::LF));
         }
@@ -565,25 +576,22 @@ namespace protocol
         const size_t FRAME_HEADER_SIZE = 4;
         size_t data_count = FRAME_HEADER_SIZE;
 
-        while (data_count < internal_recv_data_.size() && static_cast<char>(internal_recv_data_[data_count]) != static_cast<char>(ControlAsciiCode::ETX))
-        {
+        while (data_count < internal_recv_data_.size() && static_cast<char>(internal_recv_data_[data_count]) != static_cast<char>(ControlAsciiCode::ETX)) {
             recv_data.push_back(internal_recv_data_[data_count]);
 
             data_count += 1;
         }
 
-        if (append_checksum_flag_)
-        {
+        if (append_checksum_flag_) {
             std::uint8_t checksum = calculate_checksum(internal_recv_data_.data(), data_count + 1);
             std::uint8_t recved_checksum = (convert_ascii_to_hex(recv_checksum_buffer_[0]) << 4) | convert_ascii_to_hex(recv_checksum_buffer_[1]);
 
-            if (checksum != recved_checksum)
-            {
-                return false; // チェックサム不一致
+            if (checksum != recved_checksum) {
+                return CommandStatus::ChecksumError; // チェックサム不一致
             }
         }
 
-        return true;
+        return CommandStatus::Success;
     }
 
     ComputerLink::CommandStatus ComputerLink::parse_recv_abnormal_data(std::vector<std::uint8_t> &recv_data)
@@ -593,8 +601,7 @@ namespace protocol
 
         recv_data.clear();
 
-        if (internal_recv_data_.size() < 6)
-        {
+        if (internal_recv_data_.size() < 6) {
             return CommandStatus::Timeout; /** @note タイムアウトの可能性 */
         }
 
@@ -603,19 +610,15 @@ namespace protocol
         pc_number[0] = static_cast<char>(internal_recv_data_[2]);
         pc_number[1] = static_cast<char>(internal_recv_data_[3]);
 
-        recv_data.push_back(
-            (convert_ascii_to_hex((static_cast<char>(internal_recv_data_[4]))) << 4) |
-            convert_ascii_to_hex(static_cast<char>(internal_recv_data_[5]))
-        );
+        unsigned char error_code = (convert_ascii_to_hex((static_cast<char>(internal_recv_data_[4]))) << 4) |
+            convert_ascii_to_hex(static_cast<char>(internal_recv_data_[5]));
 
-        /** @note ここでは常にfalseを返す*/
-        return false;
+        return convert_error_code_to_command_status(error_code);
     }
 
     ComputerLink::CommandStatus ComputerLink::convert_error_code_to_command_status(std::uint8_t error_code)
     {
-        switch (error_code)
-        {
+        switch (error_code) {
             case 0x02:
                 return CommandStatus::ChecksumError;
             case 0x03:
@@ -625,6 +628,8 @@ namespace protocol
             case 0x07:
                 return CommandStatus::CharacterError;
             case 0x0A:
+                return CommandStatus::PcNumberError;
+            case 0x10:
                 return CommandStatus::PcNumberError;
             case 0x18:
                 return CommandStatus::RemoteError;
