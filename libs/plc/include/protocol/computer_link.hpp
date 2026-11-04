@@ -216,6 +216,6 @@ namespace protocol {
 
         void create_transaction_data(bool has_error, std::uint8_t branch_number, std::uint8_t pc_number);
     };
-};
+}
 
 #endif  // COMPUTER_LINK_HPP_

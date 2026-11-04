@@ -437,7 +437,7 @@ namespace protocol
         // 先頭文字 (STX / ACK / NAK) の受信待機
         while (true) {
             unsigned char try_count = 0;
-            constexpr MAX_TRY_COUNT = 15;
+            constexpr unsigned char MAX_TRY_COUNT = 15;
 
             if (std::chrono::steady_clock::now() >= deadline) {
                 return CommandStatus::Timeout;
