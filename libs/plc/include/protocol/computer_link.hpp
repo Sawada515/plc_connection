@@ -203,6 +203,13 @@ namespace protocol {
 
         const int MAX_BUFFER_SIZE = 1024;
 
+        CommandStatus execute_transaction(
+            const std::uint8_t branch_number,
+            const std::uint8_t pc_number,
+            const char telegram_wait,
+            std::vector<std::uint8_t> &recv_data
+        );
+
         size_t read_until(std::uint8_t* buffer, const size_t max_read_size, const char delimiter);
 
         void finalize_send_data();

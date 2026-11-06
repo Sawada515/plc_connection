@@ -20,6 +20,7 @@
 #include <string>
 #include <chrono>
 #include <format>
+#include <stdexcept>
 
 namespace protocol
 {
@@ -189,7 +190,9 @@ namespace protocol
 
         transaction_send_data_.reserve(7);
 
-        serial_.open();
+        if (!serial_.open()) {
+            throw std::runtime_error("Failed to open serial port: " + device_name);
+        }
     }
 
     ComputerLink::~ComputerLink()
@@ -205,7 +208,6 @@ namespace protocol
         const std::uint8_t number_of_devices,
         std::vector<std::uint8_t> &recv_data)
     {
-
         internal_send_data_.clear();
 
         std::format_to(
@@ -224,6 +226,75 @@ namespace protocol
 
         serial_.write(internal_send_data_.data(), internal_send_data_.size());
 
+        return execute_transaction(branch_number, pc_number, telegram_wait, recv_data);
+    }
+
+    ComputerLink::CommandStatus ComputerLink::wr(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait,
+        const std::string &device_address,
+        const std::uint8_t number_of_devices,
+        std::vector<std::uint8_t> &recv_data)
+    {
+        internal_send_data_.clear();
+
+        std::format_to(
+            std::back_inserter(internal_send_data_),
+            COMMAND_WR_BASIC_FMT,
+            static_cast<char>(ControlAsciiCode::ENQ),
+            branch_number,
+            pc_number,
+            static_cast<char>((static_cast<std::uint16_t>(CommandCode::WR) >> 8) & 0xFFU),
+            static_cast<char>((static_cast<std::uint16_t>(CommandCode::WR)) & 0xFFU),
+            telegram_wait,
+            device_address,
+            number_of_devices);
+
+        finalize_send_data();
+
+        serial_.write(internal_send_data_.data(), internal_send_data_.size());
+
+        return execute_transaction(branch_number, pc_number, telegram_wait, recv_data);
+    }
+
+    ComputerLink::CommandStatus ComputerLink::qr(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait,
+        const std::string &device_address,
+        const std::uint8_t number_of_devices,
+        std::vector<std::uint8_t> &recv_data)
+    {
+        internal_send_data_.clear();
+
+        std::format_to(
+            std::back_inserter(internal_send_data_),
+            COMMAND_QR_BASIC_FMT,
+            static_cast<char>(ControlAsciiCode::ENQ),
+            branch_number,
+            pc_number,
+            static_cast<char>((static_cast<std::uint16_t>(CommandCode::QR) >> 8) & 0xFFU),
+            static_cast<char>((static_cast<std::uint16_t>(CommandCode::QR)) & 0xFFU),
+            telegram_wait,
+            device_address,
+            number_of_devices);
+
+        finalize_send_data();
+
+        serial_.write(internal_send_data_.data(), internal_send_data_.size());
+
+        return execute_transaction(branch_number, pc_number, telegram_wait, recv_data);
+    }
+
+    // Private member
+    ComputerLink::CommandStatus ComputerLink::execute_transaction(
+            const std::uint8_t branch_number,
+            const std::uint8_t pc_number,
+            const char telegram_wait,
+            std::vector<std::uint8_t> &recv_data
+    )
+    {
         wait_ms(calculate_telegram_wait_to_ms(telegram_wait));
 
         internal_recv_data_.clear();
@@ -239,144 +310,38 @@ namespace protocol
         }
 
         CommandStatus ret{};
-        bool has_error{};
+        bool has_error = true;
 
-        if (recv_result == CommandStatus::Success && parse_result == CommandStatus::Success) {
-            ret = CommandStatus::Success;
-
-            has_error = false;
+        if (recv_result == CommandStatus::Success) {
+            if (parse_result == CommandStatus::Success) {
+                ret = CommandStatus::Success;
+                has_error = false;
+            }
+            else if (parse_result == CommandStatus::ChecksumError) {
+                ret = CommandStatus::ChecksumError;
+            }
         }
-        else if (recv_result == CommandStatus::Success && parse_result ==) {
-            //ここから
+        else if (recv_result == CommandStatus::HasError) {
+            ret = parse_result;
         }
         else if (recv_result == CommandStatus::Timeout) {
             ret = CommandStatus::Timeout;
         }
-
+        else {
+            ret = recv_result;
+        }
 
         if (recv_result == CommandStatus::Success) {
             transaction_send_data_.clear();
 
             create_transaction_data(has_error, branch_number, pc_number);
+
+            serial_.write(transaction_send_data_.data(), transaction_send_data_.size());
         }
 
-        serial_.write(transaction_send_data_.data(), transaction_send_data_.size());
-
-        // ここから
-
-        if (recv_result != CommandStatus::Success) {
-            ret = recv_result;
-        }
-        else
-
-        return parse_result;
+        return ret;
     }
 
-    ComputerLink::CommandStatus ComputerLink::wr(
-        const std::uint8_t branch_number,
-        const std::uint8_t pc_number,
-        const char telegram_wait,
-        const std::string &device_address,
-        const std::uint8_t number_of_devices,
-        std::vector<std::uint8_t> &recv_data)
-    {
-
-        internal_send_data_.clear();
-
-        std::format_to(
-            std::back_inserter(internal_send_data_),
-            COMMAND_WR_BASIC_FMT,
-            static_cast<char>(ControlAsciiCode::ENQ),
-            branch_number,
-            pc_number,
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::WR) >> 8) & 0x00FFU),
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::WR)) & 0x00FFU),
-            telegram_wait,
-            device_address,
-            number_of_devices);
-
-        finalize_send_data();
-
-        serial_.write(internal_send_data_.data(), internal_send_data_.size());
-
-        wait_ms(calculate_telegram_wait_to_ms(telegram_wait));
-
-        internal_recv_data_.clear();
-
-        CommandStatus recv_result = recv_frame();
-        CommandStatus parse_result = false;
-
-        if (recv_result)
-        {
-            parse_result = parse_recv_normal_data(recv_data);
-        }
-        else
-        {
-            parse_result = parse_recv_abnormal_data(recv_data);
-        }
-
-        transaction_send_data_.clear();
-
-        create_transaction_data(recv_result && parse_result, branch_number, pc_number);
-
-        serial_.write(transaction_send_data_.data(), transaction_send_data_.size());
-
-        return recv_result && parse_result;
-    }
-
-    ComputerLink::CommandStatus ComputerLink::qr(
-        const std::uint8_t branch_number,
-        const std::uint8_t pc_number,
-        const char telegram_wait,
-        const std::string &device_address,
-        const std::uint8_t number_of_devices,
-        std::vector<std::uint8_t> &recv_data)
-    {
-
-        internal_send_data_.clear();
-
-        std::format_to(
-            std::back_inserter(internal_send_data_),
-            COMMAND_QR_BASIC_FMT,
-            static_cast<char>(ControlAsciiCode::ENQ),
-            branch_number,
-            pc_number,
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::QR) >> 8) & 0x00FFU),
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::QR)) & 0x00FFU),
-            telegram_wait,
-            device_address,
-            number_of_devices);
-
-        finalize_send_data();
-
-        serial_.write(internal_send_data_.data(), internal_send_data_.size());
-
-        wait_ms(calculate_telegram_wait_to_ms(telegram_wait));
-
-        internal_recv_data_.clear();
-
-        CommandStatus recv_result = recv_frame();
-        CommandStatus parse_result = false;
-
-        if (recv_result)
-        {
-            parse_result = parse_recv_normal_data(recv_data);
-        }
-        else
-        {
-            parse_result = parse_recv_abnormal_data(recv_data);
-        }
-
-        transaction_send_data_.clear();
-
-        create_transaction_data(recv_result, branch_number, pc_number);
-
-        serial_.write(transaction_send_data_.data(), transaction_send_data_.size());
-
-        return recv_result && parse_result;
-    }
-
-    // Private member
     void ComputerLink::finalize_send_data()
     {
         if (append_checksum_flag_) {
