@@ -2,7 +2,7 @@
  * @file computer_link.cpp
  * @author Sawada
  * @brief
- * @note この層では例外を投げない。上位の層でassert()でチェックする
+ * @note この層ではシリアルオープン以外の例外を投げない。上位の層でassert()でチェックする
  * @version 0.1
  * @date 2026-10-21
  *
