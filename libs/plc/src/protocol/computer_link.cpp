@@ -23,6 +23,7 @@
 #include <stdexcept>
 
 #define DEBUG
+/* DEBUG時は7.5秒の待ちが必ず入る */
 
 #ifdef DEBUG
 #include <iostream>
@@ -57,27 +58,27 @@ namespace protocol
               先頭デバイスアドレス 5byte, デバイス点数 1byte
             @warning この形式が基本
         */
-        inline constexpr std::string_view COMMAND_BR_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:.5}{:02X}";
-        inline constexpr std::string_view COMMAND_WR_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:.5}{:02X}";
-        inline constexpr std::string_view COMMAND_QR_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:.7}{:02X}";
+        inline constexpr std::string_view COMMAND_BR_BASIC_FMT = "{:c}{:02X}{:02X}BR{:c}{:.5}{:02X}";
+        inline constexpr std::string_view COMMAND_WR_BASIC_FMT = "{:c}{:02X}{:02X}WR{:c}{:.5}{:02X}";
+        inline constexpr std::string_view COMMAND_QR_BASIC_FMT = "{:c}{:02X}{:02X}QR{:c}{:.7}{:02X}";
 
-        inline constexpr std::string_view COMMAND_BW_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:.5}{:02X}";
-        inline constexpr std::string_view COMMAND_WW_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:.5}{:02X}";
-        inline constexpr std::string_view COMMAND_QW_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:.7}{:02X}";
+        inline constexpr std::string_view COMMAND_BW_BASIC_FMT = "{:c}{:02X}{:02X}BW{:c}{:.5}{:02X}";
+        inline constexpr std::string_view COMMAND_WW_BASIC_FMT = "{:c}{:02X}{:02X}WW{:c}{:.5}{:02X}";
+        inline constexpr std::string_view COMMAND_QW_BASIC_FMT = "{:c}{:02X}{:02X}QW{:c}{:.7}{:02X}";
 
-        inline constexpr std::string_view COMMAND_BT_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:02X}";
+        inline constexpr std::string_view COMMAND_BT_BASIC_FMT = "{:c}{:02X}{:02X}BT{:c}{:02X}";
         inline constexpr std::string_view COMMAND_BT_PYALOAD_FMT = "{:.5}{:c}";
-        inline constexpr std::string_view COMMAND_WT_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:02X}";
+        inline constexpr std::string_view COMMAND_WT_BASIC_FMT = "{:c}{:02X}{:02X}WT{:c}{:02X}";
         inline constexpr std::string_view COMMAND_WT_PYALOAD_FMT = "{:.5}{:c}";
-        inline constexpr std::string_view COMMAND_QT_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:02X}";
+        inline constexpr std::string_view COMMAND_QT_BASIC_FMT = "{:c}{:02X}{:02X}QT{:c}{:02X}";
         inline constexpr std::string_view COMMAND_QT_PYALOAD_FMT = "{:.7}{:c}";
 
-        inline constexpr std::string_view COMMAND_RR_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}";
-        inline constexpr std::string_view COMMAND_RS_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}";
+        inline constexpr std::string_view COMMAND_RR_BASIC_FMT = "{:c}{:02X}{:02X}RR{:c}";
+        inline constexpr std::string_view COMMAND_RS_BASIC_FMT = "{:c}{:02X}{:02X}RS{:c}";
 
-        inline constexpr std::string_view COMMAND_PC_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}";
+        inline constexpr std::string_view COMMAND_PC_BASIC_FMT = "{:c}{:02X}{:02X}PC{:c}";
 
-        inline constexpr std::string_view COMMAND_GW_BASIC_FMT = "{:c}{:02X}{:02X}{:c}{:c}{:c}{:c}";
+        inline constexpr std::string_view COMMAND_GW_BASIC_FMT = "{:c}{:02X}{:02X}GW{:c}{:c}";
 
         constexpr size_t ACK_RESPONSE_SIZE = 4; // 局番号 1byte, PC番号 1byte
         constexpr size_t NAK_RESPONSE_SIZE = 6; // 局番号 1byte, PC番号 1byte, エラーコード 2byte
@@ -235,11 +236,10 @@ namespace protocol
             static_cast<char>(ControlAsciiCode::ENQ),
             branch_number,
             pc_number,
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::BR) >> 8) & 0xFFU),
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::BR)) & 0xFFU),
             telegram_wait,
             device_address,
-            number_of_devices);
+            number_of_devices
+        );
 
         finalize_send_data();
 
@@ -248,7 +248,7 @@ namespace protocol
         serial_.write(internal_send_data_.data(), internal_send_data_.size());
 
         /** @note number_of_devices * 4 <= BRコマンドはbit数で指定するためそのまま */
-        return execute_transaction(branch_number, pc_number, telegram_wait, number_of_devices, recv_data);
+        return execute_read_command_transaction(branch_number, pc_number, telegram_wait, number_of_devices, recv_data);
     }
 
     ComputerLink::CommandStatus ComputerLink::wr(
@@ -267,11 +267,10 @@ namespace protocol
             static_cast<char>(ControlAsciiCode::ENQ),
             branch_number,
             pc_number,
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::WR) >> 8) & 0xFFU),
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::WR)) & 0xFFU),
             telegram_wait,
             device_address,
-            number_of_devices);
+            number_of_devices
+        );
 
         finalize_send_data();
 
@@ -280,7 +279,7 @@ namespace protocol
         serial_.write(internal_send_data_.data(), internal_send_data_.size());
 
         /** @note number_of_devices * 4 <= これはPLCに1byteのデータを要求すると4キャラクタ分のデータで返されるため */
-        return execute_transaction(branch_number, pc_number, telegram_wait, number_of_devices * 4, recv_data);
+        return execute_read_command_transaction(branch_number, pc_number, telegram_wait, number_of_devices * 4, recv_data);
     }
 
     ComputerLink::CommandStatus ComputerLink::qr(
@@ -299,11 +298,10 @@ namespace protocol
             static_cast<char>(ControlAsciiCode::ENQ),
             branch_number,
             pc_number,
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::QR) >> 8) & 0xFFU),
-            static_cast<char>((static_cast<std::uint16_t>(CommandCode::QR)) & 0xFFU),
             telegram_wait,
             device_address,
-            number_of_devices);
+            number_of_devices
+        );
 
         finalize_send_data();
 
@@ -312,7 +310,106 @@ namespace protocol
         serial_.write(internal_send_data_.data(), internal_send_data_.size());
 
         /** @note number_of_devices * 4 <= これはPLCに1byteのデータを要求すると4キャラクタ分のデータで返されるため */
-        return execute_transaction(branch_number, pc_number, telegram_wait, number_of_devices * 4, recv_data);
+        return execute_read_command_transaction(branch_number, pc_number, telegram_wait, number_of_devices * 4, recv_data);
+    }
+
+    ComputerLink::CommandStatus ComputerLink::bw(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait,
+        const std::string &device_address,
+        const std::uint8_t number_of_devices,
+        const std::vector<std::uint8_t> &send_data
+    )
+    {
+        internal_send_data_.clear();
+
+        std::format_to(
+            std::back_inserter(internal_send_data_),
+            COMMAND_BW_BASIC_FMT,
+            static_cast<char>(ControlAsciiCode::ENQ),
+            branch_number,
+            pc_number,
+            telegram_wait,
+            device_address,
+            number_of_devices
+        );
+
+        internal_send_data_.insert(internal_send_data_.end(), send_data.begin(), send_data.end());
+
+        finalize_send_data();
+
+        debug_print(internal_send_data_);
+
+        serial_.write(internal_send_data_.data(), internal_send_data_.size());
+
+        return execute_write_command_transaction(branch_number, pc_number, telegram_wait);
+    }
+
+    ComputerLink::CommandStatus ComputerLink::ww(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait,
+        const std::string &device_address,
+        const std::uint8_t number_of_devices,
+        const std::vector<std::uint8_t> &send_data
+    )
+    {
+        internal_send_data_.clear();
+
+        std::format_to(
+            std::back_inserter(internal_send_data_),
+            COMMAND_WW_BASIC_FMT,
+            static_cast<char>(ControlAsciiCode::ENQ),
+            branch_number,
+            pc_number,
+            telegram_wait,
+            device_address,
+            number_of_devices
+        );
+
+        internal_send_data_.insert(internal_send_data_.end(), send_data.begin(), send_data.end());
+
+        finalize_send_data();
+
+        debug_print(internal_send_data_);
+
+        serial_.write(internal_send_data_.data(), internal_send_data_.size());
+
+        return execute_write_command_transaction(branch_number, pc_number, telegram_wait);
+    }
+
+    ComputerLink::CommandStatus ComputerLink::qw(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait,
+        const std::string &device_address,
+        const std::uint8_t number_of_devices,
+        const std::vector<std::uint8_t> &send_data
+    )
+    {
+        internal_send_data_.clear();
+
+        std::format_to(
+            std::back_inserter(internal_send_data_),
+            COMMAND_QW_BASIC_FMT,
+            static_cast<char>(ControlAsciiCode::ENQ),
+            branch_number,
+            pc_number,
+            telegram_wait,
+            device_address,
+            number_of_devices
+        );
+
+        internal_send_data_.insert(internal_send_data_.end(), send_data.begin(), send_data.end());
+
+        finalize_send_data();
+
+        debug_print(internal_send_data_);
+
+        serial_.write(internal_send_data_.data(), internal_send_data_.size());
+
+        return execute_write_command_transaction(branch_number, pc_number, telegram_wait);
     }
 
     /**
@@ -335,6 +432,10 @@ namespace protocol
                 return "RxChecksumError";
             case CommandStatus::RxLengthError:
                 return "RxLengthError";
+            case CommandStatus::RxBranchNumberMismatchError:
+                return "RxBranchNumberMismatchError";
+            case CommandStatus::RxPcNumberMismatchError:
+                return "RxPcNumberMismatchError";
             case CommandStatus::HasError:
                 return "HasError";  /**@note これは内部用なので外に出ないはず */
             case CommandStatus::ChecksumError:
@@ -365,7 +466,7 @@ namespace protocol
      * @return 実行結果
      * @warning number_of_devicesは必ずbit数で指定する。BRコマンドの仕様に合わせている
      */
-    ComputerLink::CommandStatus ComputerLink::execute_transaction(
+    ComputerLink::CommandStatus ComputerLink::execute_read_command_transaction(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
@@ -375,9 +476,11 @@ namespace protocol
     {
         wait_ms(calculate_telegram_wait_to_ms(telegram_wait));
 
+#ifdef DEBUG
         for (int i = 0; i < 50; ++i) {
             wait_ms(calculate_telegram_wait_to_ms('F'));
         }
+#endif
 
         internal_recv_data_.clear();
 
@@ -385,10 +488,10 @@ namespace protocol
         CommandStatus parse_result{};
 
         if (recv_result == CommandStatus::Success) {
-            parse_result = parse_recv_normal_data(recv_data, number_of_devices);
+            parse_result = parse_recv_normal_data(recv_data, branch_number, pc_number, number_of_devices, true);
         }
         else if (recv_result == CommandStatus::HasError) {
-            parse_result = parse_recv_abnormal_data(recv_data);
+            parse_result = parse_recv_abnormal_data();
         }
 
         if (recv_result == CommandStatus::Success) {
@@ -400,6 +503,43 @@ namespace protocol
 
             serial_.write(transaction_send_data_.data(), transaction_send_data_.size());
 
+            return parse_result;
+        }
+        else if (recv_result == CommandStatus::HasError) {
+            /* PLCが返したエラー */
+
+            return parse_result;
+        }
+        else {
+            return recv_result;
+        }
+    }
+
+    ComputerLink::CommandStatus ComputerLink::execute_write_command_transaction(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait
+    )
+    {
+        wait_ms(calculate_telegram_wait_to_ms(telegram_wait));
+
+        internal_recv_data_.clear();
+
+        CommandStatus recv_result = recv_frame();
+        CommandStatus parse_result{};
+
+        std::vector<std::uint8_t> recv_data __attribute__((unused)); // 受信データはwrite系コマンドでは使用しない
+
+        if (recv_result == CommandStatus::Success) {
+            // write系コマンドでは、受信データの解析は行わないため、number_of_devicesは0として呼び出す
+
+            parse_result = parse_recv_normal_data(recv_data, branch_number, pc_number, 0, false);
+        }
+        else if (recv_result == CommandStatus::HasError) {
+            parse_result = parse_recv_abnormal_data();
+        }
+
+        if (recv_result == CommandStatus::Success) {
             return parse_result;
         }
         else if (recv_result == CommandStatus::HasError) {
@@ -488,7 +628,6 @@ namespace protocol
                 }
 
                 try_count += 1;
-                std::cout << "try_count: " << static_cast<int>(try_count) << std::endl;
                 if (try_count >= MAX_TRY_COUNT) {
                     return CommandStatus::InvalidHeaderError; 
                 }
@@ -602,17 +741,40 @@ namespace protocol
      * @return 解析結果
      * @warning number_of_devicesは必ずbit数で指定する。BRコマンドの仕様に合わせている
      */
-    ComputerLink::CommandStatus ComputerLink::parse_recv_normal_data(std::vector<std::uint8_t> &recv_data, std::uint8_t number_of_devices)
+    ComputerLink::CommandStatus ComputerLink::parse_recv_normal_data(
+        std::vector<std::uint8_t> &recv_data,
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const std::uint8_t number_of_devices,
+        const bool call_from_execute_read_command_transaction
+    )
     {
-        char telegram_number[2] = {'\0'};
-        char pc_number[2] = {'\0'};
+        char recv_branch_number[2] = {'\0'};
+        char recv_pc_number[2] = {'\0'};
+
+        recv_branch_number[0] = static_cast<char>(internal_recv_data_[0]);
+        recv_branch_number[1] = static_cast<char>(internal_recv_data_[1]);
+        recv_pc_number[0] = static_cast<char>(internal_recv_data_[2]);
+        recv_pc_number[1] = static_cast<char>(internal_recv_data_[3]);
+
+        std::uint8_t recv_branch_number_value = (convert_ascii_to_hex(recv_branch_number[0]) << 4) | convert_ascii_to_hex(recv_branch_number[1]);
+        std::uint8_t recv_pc_number_value = (convert_ascii_to_hex(recv_pc_number[0]) << 4) | convert_ascii_to_hex(recv_pc_number[1]);
+
+        if (recv_branch_number_value != branch_number) {
+            return CommandStatus::RxBranchNumberMismatchError;
+        }
+        if (recv_pc_number_value != pc_number) {
+            return CommandStatus::RxPcNumberMismatchError;
+        }
+
+        /*
+         * write系コマンドは局番号とPC番号のみ送られてくる
+         */
+        if (!call_from_execute_read_command_transaction) {
+            return CommandStatus::Success;
+        }
 
         recv_data.clear();
-
-        telegram_number[0] = static_cast<char>(internal_recv_data_[0]);
-        telegram_number[1] = static_cast<char>(internal_recv_data_[1]);
-        pc_number[0] = static_cast<char>(internal_recv_data_[2]);
-        pc_number[1] = static_cast<char>(internal_recv_data_[3]);
 
         const size_t FRAME_HEADER_SIZE = 4;
         size_t data_count = FRAME_HEADER_SIZE;
@@ -621,6 +783,10 @@ namespace protocol
             recv_data.push_back(internal_recv_data_[data_count]);
 
             data_count += 1;
+        }
+
+        if (recv_data.size() != static_cast<std::size_t>(number_of_devices)) {
+            return CommandStatus::RxLengthError;
         }
 
         if (append_checksum_flag_) {
@@ -632,19 +798,13 @@ namespace protocol
             }
         }
 
-        if (recv_data.size() != static_cast<std::size_t>(number_of_devices)) {
-            return CommandStatus::RxLengthError;
-        }
-
         return CommandStatus::Success;
     }
 
-    ComputerLink::CommandStatus ComputerLink::parse_recv_abnormal_data(std::vector<std::uint8_t> &recv_data)
+    ComputerLink::CommandStatus ComputerLink::parse_recv_abnormal_data()
     {
         char telegram_number[2] = {'\0'};
         char pc_number[2] = {'\0'};
-
-        recv_data.clear();
 
         if (internal_recv_data_.size() < 6) {
             return CommandStatus::Timeout; /** @note タイムアウトの可能性 */

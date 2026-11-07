@@ -23,23 +23,25 @@ namespace protocol {
     class ComputerLink {
       public:
         enum class CommandStatus : int {
-            Success             = 0,
-            Timeout             = -1,
-            UnknownError        = -2,
-            InvalidHeaderError  = -3,
-            RxChecksumError     = -4,
-            RxLengthError       = -5,
+            Success                         = 0,
+            Timeout                         = -1,
+            UnknownError                    = -2,
+            InvalidHeaderError              = -3,
+            RxChecksumError                 = -4,
+            RxLengthError                   = -5,
+            RxBranchNumberMismatchError     = -6,
+            RxPcNumberMismatchError         = -7,
 
             // 内部用
-            HasError            = -255,
+            HasError                        = -255,
 
             // 以下PLC固有のエラー
-            ChecksumError       = 0x02,
-            ProtocolError       = 0x03,
-            CharacterPartError  = 0x06,
-            CharacterError      = 0x07, 
-            PcNumberError       = 0x0A,    /* @note 同じ鰓内容で0x0Aもしくは0x10が返ってくる可能性があるが0x0Aを使用する */
-            RemoteError         = 0x18
+            ChecksumError                   = 0x02,
+            ProtocolError                   = 0x03,
+            CharacterPartError              = 0x06,
+            CharacterError                  = 0x07, 
+            PcNumberError                   = 0x0A,    /* @note 同じ鰓内容で0x0Aもしくは0x10が返ってくる可能性があるが0x0Aを使用する */
+            RemoteError                     = 0x18
         }; 
     
         /**
@@ -103,7 +105,7 @@ namespace protocol {
             const char telegram_wait,
             const std::string &device_address,
             const std::uint8_t number_of_devices,
-            std::vector<std::uint8_t> &recv_data
+            const std::vector<std::uint8_t> &send_data
         );
 
         [[nodiscard]] CommandStatus bt(
@@ -162,21 +164,6 @@ namespace protocol {
         [[nodiscard]] const char* convert_command_status_to_string(CommandStatus status);
 
       private:
-        enum class CommandCode : std::uint16_t {
-            BR = 0x4252,
-            WR = 0x5752,
-            QR = 0x5152,
-            BW = 0x4257,
-            WW = 0x5757,
-            QW = 0x5157,
-            BT = 0x4254,
-            QT = 0x5154,
-            RR = 0x5252,
-            RS = 0x5352,
-            PC = 0x5043,
-            GW = 0x4757
-        };
-
         enum class ControlAsciiCode : std::uint8_t {
             STX = 0x02,
             ETX = 0x03,
@@ -208,12 +195,18 @@ namespace protocol {
 
         const int MAX_BUFFER_SIZE = 1024;
 
-        CommandStatus execute_transaction(
+        CommandStatus execute_read_command_transaction(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
             const std::uint8_t number_of_devices,
             std::vector<std::uint8_t> &recv_data
+        );
+
+        CommandStatus execute_write_command_transaction(
+            const std::uint8_t branch_number,
+            const std::uint8_t pc_number,
+            const char telegram_wait
         );
 
         ssize_t read_until(std::uint8_t* buffer, const size_t max_read_size, const char delimiter);
@@ -222,8 +215,15 @@ namespace protocol {
 
         CommandStatus recv_frame();
 
-        CommandStatus parse_recv_normal_data(std::vector<std::uint8_t> &recv_data, std::uint8_t number_of_devices);
-        CommandStatus parse_recv_abnormal_data(std::vector<std::uint8_t> &recv_data);
+        CommandStatus parse_recv_normal_data(
+            std::vector<std::uint8_t> &recv_data,
+            const std::uint8_t branch_number,
+            const std::uint8_t pc_number,
+            const std::uint8_t number_of_devices,
+            const bool call_from_execute_read_command_transaction
+        );
+
+        CommandStatus parse_recv_abnormal_data();
 
         CommandStatus convert_error_code_to_command_status(std::uint8_t error_code);
 
