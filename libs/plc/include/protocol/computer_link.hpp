@@ -26,9 +26,12 @@ namespace protocol {
             Success             = 0,
             Timeout             = -1,
             UnknownError        = -2,
+            InvalidHeaderError  = -3,
+            RxChecksumError     = -4,
+            RxLengthError       = -5,
 
             // 内部用
-            HasError            = -3,
+            HasError            = -255,
 
             // 以下PLC固有のエラー
             ChecksumError       = 0x02,
@@ -37,7 +40,7 @@ namespace protocol {
             CharacterError      = 0x07, 
             PcNumberError       = 0x0A,    /* @note 同じ鰓内容で0x0Aもしくは0x10が返ってくる可能性があるが0x0Aを使用する */
             RemoteError         = 0x18
-        };  // TODO 数字からエラーコードへの変換関数を作成する
+        }; 
     
         /**
          * @brief Construct a new ComputerLink object
@@ -156,6 +159,8 @@ namespace protocol {
             const bool signal_data
         );
 
+        [[nodiscard]] const char* convert_command_status_to_string(CommandStatus status);
+
       private:
         enum class CommandCode : std::uint16_t {
             BR = 0x4252,
@@ -207,16 +212,17 @@ namespace protocol {
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
+            const std::uint8_t number_of_devices,
             std::vector<std::uint8_t> &recv_data
         );
 
-        size_t read_until(std::uint8_t* buffer, const size_t max_read_size, const char delimiter);
+        ssize_t read_until(std::uint8_t* buffer, const size_t max_read_size, const char delimiter);
 
         void finalize_send_data();
 
         CommandStatus recv_frame();
 
-        CommandStatus parse_recv_normal_data(std::vector<std::uint8_t> &recv_data);
+        CommandStatus parse_recv_normal_data(std::vector<std::uint8_t> &recv_data, std::uint8_t number_of_devices);
         CommandStatus parse_recv_abnormal_data(std::vector<std::uint8_t> &recv_data);
 
         CommandStatus convert_error_code_to_command_status(std::uint8_t error_code);

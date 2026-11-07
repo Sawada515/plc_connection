@@ -22,6 +22,25 @@
 #include <format>
 #include <stdexcept>
 
+#define DEBUG
+
+#ifdef DEBUG
+#include <iostream>
+
+void debug_print(const std::vector<std::uint8_t> &data)
+{
+    for (int i = 0; i < data.size(); ++i) {
+        printf("%02X: %c\n", data[i], data[i]);
+    }
+}
+#else
+void debug_print(const std::vector<std::uint8_t> &data __attribute__((unused)))
+{
+    ;
+}
+
+#endif // DEBUG
+
 namespace protocol
 {
     namespace
@@ -115,7 +134,7 @@ namespace protocol
             {
                 return static_cast<std::uint8_t>(ascii_char - 'A' + 10);
             }
-            else if (ascii_char >= 'a' && ascii_char <= 'f')
+            else /* a - z */
             {
                 return static_cast<std::uint8_t>(ascii_char - 'a' + 10);
             }
@@ -224,9 +243,12 @@ namespace protocol
 
         finalize_send_data();
 
+        debug_print(internal_send_data_);
+
         serial_.write(internal_send_data_.data(), internal_send_data_.size());
 
-        return execute_transaction(branch_number, pc_number, telegram_wait, recv_data);
+        /** @note number_of_devices * 4 <= BRコマンドはbit数で指定するためそのまま */
+        return execute_transaction(branch_number, pc_number, telegram_wait, number_of_devices, recv_data);
     }
 
     ComputerLink::CommandStatus ComputerLink::wr(
@@ -253,9 +275,12 @@ namespace protocol
 
         finalize_send_data();
 
+        debug_print(internal_send_data_);
+
         serial_.write(internal_send_data_.data(), internal_send_data_.size());
 
-        return execute_transaction(branch_number, pc_number, telegram_wait, recv_data);
+        /** @note number_of_devices * 4 <= これはPLCに1byteのデータを要求すると4キャラクタ分のデータで返されるため */
+        return execute_transaction(branch_number, pc_number, telegram_wait, number_of_devices * 4, recv_data);
     }
 
     ComputerLink::CommandStatus ComputerLink::qr(
@@ -282,20 +307,77 @@ namespace protocol
 
         finalize_send_data();
 
+        debug_print(internal_send_data_);
+
         serial_.write(internal_send_data_.data(), internal_send_data_.size());
 
-        return execute_transaction(branch_number, pc_number, telegram_wait, recv_data);
+        /** @note number_of_devices * 4 <= これはPLCに1byteのデータを要求すると4キャラクタ分のデータで返されるため */
+        return execute_transaction(branch_number, pc_number, telegram_wait, number_of_devices * 4, recv_data);
+    }
+
+    /**
+     * @brief コマンドの実行結果を文字列に変換する
+     * @param status コマンドの実行結果
+     * @return 変換された文字列
+     */
+    const char* ComputerLink::convert_command_status_to_string(CommandStatus status)
+    {
+        switch (status) {
+            case CommandStatus::Success:
+                return "Success";
+            case CommandStatus::Timeout:
+                return "Timeout";
+            case CommandStatus::UnknownError:
+                return "UnknownError";
+            case CommandStatus::InvalidHeaderError:
+                return "InvalidHeaderError";
+            case CommandStatus::RxChecksumError:
+                return "RxChecksumError";
+            case CommandStatus::RxLengthError:
+                return "RxLengthError";
+            case CommandStatus::HasError:
+                return "HasError";  /**@note これは内部用なので外に出ないはず */
+            case CommandStatus::ChecksumError:
+                return "ChecksumError";
+            case CommandStatus::ProtocolError:
+                return "ProtocolError";
+            case CommandStatus::CharacterPartError:
+                return "CharacterPartError";
+            case CommandStatus::CharacterError:
+                return "CharacterError";
+            case CommandStatus::PcNumberError:
+                return "PcNumberError";
+            case CommandStatus::RemoteError:
+                return "RemoteError";
+            default:
+                return "Unknown Status";
+        }
     }
 
     // Private member
+    /**
+     * @brief トランザクションを実行する
+     * @param branch_number ブランチ番号
+     * @param pc_number PC番号
+     * @param telegram_wait トランザクションの待機時間
+     * @param number_of_devices デバイス点数
+     * @param recv_data 受信データ
+     * @return 実行結果
+     * @warning number_of_devicesは必ずbit数で指定する。BRコマンドの仕様に合わせている
+     */
     ComputerLink::CommandStatus ComputerLink::execute_transaction(
             const std::uint8_t branch_number,
             const std::uint8_t pc_number,
             const char telegram_wait,
+            const std::uint8_t number_of_devices,
             std::vector<std::uint8_t> &recv_data
     )
     {
         wait_ms(calculate_telegram_wait_to_ms(telegram_wait));
+
+        for (int i = 0; i < 50; ++i) {
+            wait_ms(calculate_telegram_wait_to_ms('F'));
+        }
 
         internal_recv_data_.clear();
 
@@ -303,43 +385,31 @@ namespace protocol
         CommandStatus parse_result{};
 
         if (recv_result == CommandStatus::Success) {
-            parse_result = parse_recv_normal_data(recv_data);
+            parse_result = parse_recv_normal_data(recv_data, number_of_devices);
         }
         else if (recv_result == CommandStatus::HasError) {
             parse_result = parse_recv_abnormal_data(recv_data);
         }
 
-        CommandStatus ret{};
-        bool has_error = true;
-
         if (recv_result == CommandStatus::Success) {
-            if (parse_result == CommandStatus::Success) {
-                ret = CommandStatus::Success;
-                has_error = false;
-            }
-            else if (parse_result == CommandStatus::ChecksumError) {
-                ret = CommandStatus::ChecksumError;
-            }
-        }
-        else if (recv_result == CommandStatus::HasError) {
-            ret = parse_result;
-        }
-        else if (recv_result == CommandStatus::Timeout) {
-            ret = CommandStatus::Timeout;
-        }
-        else {
-            ret = recv_result;
-        }
+            bool has_error = (parse_result != CommandStatus::Success);
 
-        if (recv_result == CommandStatus::Success) {
             transaction_send_data_.clear();
 
             create_transaction_data(has_error, branch_number, pc_number);
 
             serial_.write(transaction_send_data_.data(), transaction_send_data_.size());
-        }
 
-        return ret;
+            return parse_result;
+        }
+        else if (recv_result == CommandStatus::HasError) {
+            /* PLCが返したエラー */
+
+            return parse_result;
+        }
+        else {
+            return recv_result;
+        }
     }
 
     void ComputerLink::finalize_send_data()
@@ -357,7 +427,7 @@ namespace protocol
         }
     }
 
-    size_t ComputerLink::read_until(std::uint8_t *buffer, const size_t max_read_size, const char delimiter)
+    ssize_t ComputerLink::read_until(std::uint8_t *buffer, const size_t max_read_size, const char delimiter)
     {
         size_t total_bytes_read = 0;
 
@@ -397,13 +467,13 @@ namespace protocol
         recv_checksum_buffer_[0] = '\0';
         recv_checksum_buffer_[1] = '\0';
 
+        unsigned char try_count = 0;
+        constexpr unsigned char MAX_TRY_COUNT = 15;
+
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms_);
 
         // 先頭文字 (STX / ACK / NAK) の受信待機
         while (true) {
-            unsigned char try_count = 0;
-            constexpr unsigned char MAX_TRY_COUNT = 15;
-
             if (std::chrono::steady_clock::now() >= deadline) {
                 return CommandStatus::Timeout;
             }
@@ -418,15 +488,14 @@ namespace protocol
                 }
 
                 try_count += 1;
-                if (MAX_TRY_COUNT >= try_count) {
-                    return CommandStatus::UnknownError; 
+                std::cout << "try_count: " << static_cast<int>(try_count) << std::endl;
+                if (try_count >= MAX_TRY_COUNT) {
+                    return CommandStatus::InvalidHeaderError; 
                 }
             }
             if (bytes_read < 0) {
                 return CommandStatus::UnknownError;
             }
-
-            wait_ms(2);
         }
 
         if (first_char == static_cast<std::uint8_t>(ControlAsciiCode::STX)) {
@@ -526,7 +595,14 @@ namespace protocol
         }
     }
 
-    ComputerLink::CommandStatus ComputerLink::parse_recv_normal_data(std::vector<std::uint8_t> &recv_data)
+    /**
+     * @brief 受信した通常データを解析する
+     * @param recv_data 受信したデータ
+     * @param number_of_devices デバイス点数
+     * @return 解析結果
+     * @warning number_of_devicesは必ずbit数で指定する。BRコマンドの仕様に合わせている
+     */
+    ComputerLink::CommandStatus ComputerLink::parse_recv_normal_data(std::vector<std::uint8_t> &recv_data, std::uint8_t number_of_devices)
     {
         char telegram_number[2] = {'\0'};
         char pc_number[2] = {'\0'};
@@ -552,8 +628,12 @@ namespace protocol
             std::uint8_t recved_checksum = (convert_ascii_to_hex(recv_checksum_buffer_[0]) << 4) | convert_ascii_to_hex(recv_checksum_buffer_[1]);
 
             if (checksum != recved_checksum) {
-                return CommandStatus::ChecksumError; // チェックサム不一致
+                return CommandStatus::RxChecksumError;
             }
+        }
+
+        if (recv_data.size() != static_cast<std::size_t>(number_of_devices)) {
+            return CommandStatus::RxLengthError;
         }
 
         return CommandStatus::Success;

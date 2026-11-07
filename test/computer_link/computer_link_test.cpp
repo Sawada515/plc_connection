@@ -18,7 +18,7 @@
 
 constexpr size_t BUFFER_SIZE = 256;
 
-constexpr std::uint8_t BRANCH_NUMBER = 0x00;
+constexpr std::uint8_t BRANCH_NUMBER = 0x05;
 constexpr std::uint8_t PC_NUMBER = 0xFF;
 constexpr char TELEGRAM_WAIT = '0';
 
@@ -30,16 +30,25 @@ int main()
     recv_data.reserve(BUFFER_SIZE);
 
     try {
-        protocol::ComputerLink computer_link("/dev/ttyS0", false, false, 9600, 10);
+        // チェックサムなし　CRLFなし   OK
+        //protocol::ComputerLink computer_link("/dev/ttyUSB0", false, false, 5, 10);
+        // チェックサムあり　CRLFなし   OK
+        //protocol::ComputerLink computer_link("/dev/ttyUSB0", true, false, 5, 10);
+        // チェックサムなし　CRLFあり   OK
+        //protocol::ComputerLink computer_link("/dev/ttyUSB0", false, true, 5, 10);
+        // チェックサムあり CRLFあり
+        protocol::ComputerLink computer_link("/dev/ttyUSB0", true, true, 5, 10);
 
         ret = computer_link.br(
             BRANCH_NUMBER,
             PC_NUMBER,
-            TELEGRAM_WAIT,
-            "D0100",
-            1,
+            'A',
+            "X0040",
+            5,
             recv_data
         );
+
+        std::cout << "BR command result: " << computer_link.convert_command_status_to_string(ret) << std::endl;
 
         if (ret == protocol::ComputerLink::CommandStatus::Success) {
             std::cout << "Received data: ";
@@ -56,10 +65,12 @@ int main()
             BRANCH_NUMBER,
             PC_NUMBER,
             TELEGRAM_WAIT,
-            "D0100",
-            1,
+            "X0040",
+            2,
             recv_data
         );
+
+        std::cout << "WR command result: " << computer_link.convert_command_status_to_string(ret) << std::endl;
 
         if (ret == protocol::ComputerLink::CommandStatus::Success) {
             std::cout << "Received data: ";
@@ -72,14 +83,16 @@ int main()
             std::cout << "Command failed with status: " << static_cast<int>(ret) << std::endl;
         }
 
-        ret = computer_link.br(
+        ret = computer_link.qr(
             BRANCH_NUMBER,
             PC_NUMBER,
             TELEGRAM_WAIT,
-            "D000100",
-            1,
+            "X000040",
+            2,
             recv_data
         );
+
+        std::cout << "QR command result: " << computer_link.convert_command_status_to_string(ret) << std::endl;
 
         if (ret == protocol::ComputerLink::CommandStatus::Success) {
             std::cout << "Received data: ";

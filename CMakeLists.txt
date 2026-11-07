@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
-set(CMAKE_C_COMPILER "/usr/bin/gcc-13")
-set(CMAKE_CXX_COMPILER "/usr/bin/g++-13")
+#set(CMAKE_C_COMPILER "/usr/bin/gcc-13")
+#set(CMAKE_CXX_COMPILER "/usr/bin/g++-13")
 
 project(plc_connection
     VERSION 1.0.0
