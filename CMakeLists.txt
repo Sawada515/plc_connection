@@ -17,8 +17,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_subdirectory(libs/serial)
 add_subdirectory(libs/plc)
+add_subdirectory(libs/logger)
 
 add_subdirectory(app)
 
 add_subdirectory(test/serial)
 add_subdirectory(test/computer_link)
+
