@@ -39,6 +39,7 @@ int main()
         // チェックサムあり CRLFあり
         protocol::ComputerLink computer_link("/dev/ttyUSB0", true, true, 5, 10);
 
+/*
         ret = computer_link.br(
             BRANCH_NUMBER,
             PC_NUMBER,
@@ -104,6 +105,129 @@ int main()
         else {
             std::cout << "Command failed with status: " << static_cast<int>(ret) << std::endl;
         }
+
+        ret = computer_link.pc(
+            0x0F,
+            PC_NUMBER,
+            TELEGRAM_WAIT,
+            recv_data
+        );
+
+        std::cout << "PC command result: " << computer_link.convert_command_status_to_string(ret) << std::endl;
+
+        if (ret == protocol::ComputerLink::CommandStatus::Success) {
+            std::cout << "Received data: ";
+            for (const auto& byte : recv_data) {
+                std::cout << std::hex << static_cast<int>(byte) << " ";
+            }
+            std::cout << std::endl;
+        }
+        else {
+            std::cout << "Command failed with status: " << static_cast<int>(ret) << std::endl;
+        }
+
+*/
+        // write系コマンドのテスト
+
+        std::vector<std::uint8_t> send_data;
+        send_data.reserve(BUFFER_SIZE);
+
+        send_data.push_back(0x30);
+        send_data.push_back(0x31);
+        send_data.push_back(0x31);
+        send_data.push_back(0x30);
+        send_data.push_back(0x31);
+
+        ret = computer_link.bw(
+            BRANCH_NUMBER,
+            PC_NUMBER,
+            TELEGRAM_WAIT,
+            "M0903",
+            5,
+            send_data
+        );
+
+        std::cout << "BW command result: " << computer_link.convert_command_status_to_string(ret) << std::endl;
+
+        send_data.clear();
+
+        send_data.push_back(0x32);
+        send_data.push_back(0x33);
+        send_data.push_back(0x34);
+        send_data.push_back(0x37);
+
+        send_data.push_back(0x41);
+        send_data.push_back(0x42);
+        send_data.push_back(0x39);
+        send_data.push_back(0x36);
+
+        ret = computer_link.ww(
+            BRANCH_NUMBER,
+            PC_NUMBER,
+            TELEGRAM_WAIT,
+            "M0640",
+            2,
+            send_data
+        );
+
+        std::cout << "WW command result: " << computer_link.convert_command_status_to_string(ret) << std::endl;
+
+        send_data.clear();
+
+        send_data.push_back(0x32);
+        send_data.push_back(0x33);
+        send_data.push_back(0x34);
+        send_data.push_back(0x37);
+
+        send_data.push_back(0x41);
+        send_data.push_back(0x42);
+        send_data.push_back(0x39);
+        send_data.push_back(0x36);
+
+        ret = computer_link.qw(
+            BRANCH_NUMBER,
+            PC_NUMBER,
+            TELEGRAM_WAIT,
+            "M000640",
+            2,
+            send_data
+        );
+
+        std::cout << "QW command result: " << computer_link.convert_command_status_to_string(ret) << std::endl;
+
+        ret = computer_link.rr(
+            BRANCH_NUMBER,
+            PC_NUMBER,
+            TELEGRAM_WAIT
+        );
+
+        std::cout << "RR command result: " << computer_link.convert_command_status_to_string(ret) << std::endl;
+
+        ret = computer_link.rs(
+            BRANCH_NUMBER,
+            PC_NUMBER,
+            TELEGRAM_WAIT
+        );
+
+        std::cout << "RS command result: " << computer_link.convert_command_status_to_string(ret) << std::endl;
+
+        ret = computer_link.gw(
+            BRANCH_NUMBER,
+            PC_NUMBER,
+            TELEGRAM_WAIT,
+            false
+        );
+
+        std::cout << "GW command result: " << computer_link.convert_command_status_to_string(ret) << std::endl;
+
+        ret = computer_link.gw(
+            BRANCH_NUMBER,
+            PC_NUMBER,
+            TELEGRAM_WAIT,
+            true
+        );
+        
+        std::cout << "GW command result: " << computer_link.convert_command_status_to_string(ret) << std::endl;
     }
     catch (const std::runtime_error& e) {
         printf("Error: %s\n", e.what());

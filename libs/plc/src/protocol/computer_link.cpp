@@ -3,11 +3,9 @@
  * @author Sawada
  * @brief
  * @note この層ではシリアルオープン以外の例外を投げない。上位の層でassert()でチェックする
+ * @warning 今回はbt, wt, qtの実装は行わない
  * @version 0.1
  * @date 2026-10-21
- *
- * @copyright Copyright (c) 2026
- *
  */
 
 #include <protocol/computer_link.hpp>
@@ -67,10 +65,11 @@ namespace protocol
         inline constexpr std::string_view COMMAND_QW_BASIC_FMT = "{:c}{:02X}{:02X}QW{:c}{:.7}{:02X}";
 
         inline constexpr std::string_view COMMAND_BT_BASIC_FMT = "{:c}{:02X}{:02X}BT{:c}{:02X}";
-        inline constexpr std::string_view COMMAND_BT_PYALOAD_FMT = "{:.5}{:c}";
         inline constexpr std::string_view COMMAND_WT_BASIC_FMT = "{:c}{:02X}{:02X}WT{:c}{:02X}";
-        inline constexpr std::string_view COMMAND_WT_PYALOAD_FMT = "{:.5}{:c}";
         inline constexpr std::string_view COMMAND_QT_BASIC_FMT = "{:c}{:02X}{:02X}QT{:c}{:02X}";
+
+        inline constexpr std::string_view COMMAND_BT_PYALOAD_FMT = "{:.5}{:c}";
+        inline constexpr std::string_view COMMAND_WT_PYALOAD_FMT = "{:.5}{:c}";
         inline constexpr std::string_view COMMAND_QT_PYALOAD_FMT = "{:.7}{:c}";
 
         inline constexpr std::string_view COMMAND_RR_BASIC_FMT = "{:c}{:02X}{:02X}RR{:c}";
@@ -309,7 +308,7 @@ namespace protocol
 
         serial_.write(internal_send_data_.data(), internal_send_data_.size());
 
-        /** @note number_of_devices * 4 <= これはPLCに1byteのデータを要求すると4キャラクタ分のデータで返されるため */
+        /** @note number_of_devices * 4: これはPLCに1byteのデータを要求すると4キャラクタ分のデータで返されるため */
         return execute_read_command_transaction(branch_number, pc_number, telegram_wait, number_of_devices * 4, recv_data);
     }
 
@@ -410,6 +409,151 @@ namespace protocol
         serial_.write(internal_send_data_.data(), internal_send_data_.size());
 
         return execute_write_command_transaction(branch_number, pc_number, telegram_wait);
+    }
+
+    ComputerLink::CommandStatus ComputerLink::bt(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait,
+        const std::string &device_address,
+        const std::uint8_t number_of_devices,
+        const std::vector<std::uint32_t> &send_data
+    )
+    {
+        assert(false);
+    }
+
+    ComputerLink::CommandStatus ComputerLink::wt(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait,
+        const std::string &device_address,
+        const std::uint8_t number_of_devices,
+        const std::vector<std::uint32_t> &send_data
+    )
+    {
+        assert(false);
+    }
+
+    ComputerLink::CommandStatus ComputerLink::qt(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait,
+        const std::string &device_address,
+        const std::uint8_t number_of_devices,
+        std::vector<std::uint32_t> &send_data
+    )
+    {
+        assert(false);
+    }
+
+    ComputerLink::CommandStatus ComputerLink::rr(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait
+    )
+    {
+        internal_send_data_.clear();
+
+        std::format_to(
+            std::back_inserter(internal_send_data_),
+            COMMAND_RR_BASIC_FMT,
+            static_cast<char>(ControlAsciiCode::ENQ),
+            branch_number,
+            pc_number,
+            telegram_wait
+        );
+
+        finalize_send_data();
+
+        debug_print(internal_send_data_);
+
+        serial_.write(internal_send_data_.data(), internal_send_data_.size());
+
+        return execute_write_command_transaction(branch_number, pc_number, telegram_wait);
+    }
+
+    ComputerLink::CommandStatus ComputerLink::rs(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait
+    )
+    {
+        internal_send_data_.clear();
+
+        std::format_to(
+            std::back_inserter(internal_send_data_),
+            COMMAND_RS_BASIC_FMT,
+            static_cast<char>(ControlAsciiCode::ENQ),
+            branch_number,
+            pc_number,
+            telegram_wait
+        );
+
+        finalize_send_data();
+
+        debug_print(internal_send_data_);
+
+        serial_.write(internal_send_data_.data(), internal_send_data_.size());
+
+        return execute_write_command_transaction(branch_number, pc_number, telegram_wait);
+    }
+
+    ComputerLink::CommandStatus ComputerLink::pc(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait,
+        std::vector<std::uint8_t> &recv_data
+    )
+    {
+        internal_send_data_.clear();
+
+        std::format_to(
+            std::back_inserter(internal_send_data_),
+            COMMAND_PC_BASIC_FMT,
+            static_cast<char>(ControlAsciiCode::ENQ),
+            branch_number,
+            pc_number,
+            telegram_wait
+        );
+
+        finalize_send_data();
+
+        debug_print(internal_send_data_);
+
+        serial_.write(internal_send_data_.data(), internal_send_data_.size());
+
+        // 2キャラクタの固定長のデータが返ってくる
+        return execute_read_command_transaction(branch_number, pc_number, telegram_wait, 2, recv_data);
+    }
+
+    ComputerLink::CommandStatus ComputerLink::gw(
+        const std::uint8_t branch_number,
+        const std::uint8_t pc_number,
+        const char telegram_wait,
+        const bool signal_data
+    )
+    {
+        internal_send_data_.clear();
+
+        std::format_to(
+            std::back_inserter(internal_send_data_),
+            COMMAND_GW_BASIC_FMT,
+            static_cast<char>(ControlAsciiCode::ENQ),
+            branch_number,
+            pc_number,
+            telegram_wait,
+            signal_data ? '1' : '0'
+        );
+
+        finalize_send_data();
+
+        debug_print(internal_send_data_);
+
+        serial_.write(internal_send_data_.data(), internal_send_data_.size());
+
+        // GWコマンドは受信データがないため、常にSuccessを返す
+        return ComputerLink::CommandStatus::Success;
     }
 
     /**
@@ -522,6 +666,12 @@ namespace protocol
     )
     {
         wait_ms(calculate_telegram_wait_to_ms(telegram_wait));
+
+#ifdef DEBUG
+        for (int i = 0; i < 50; ++i) {
+            wait_ms(calculate_telegram_wait_to_ms('F'));
+        }
+#endif
 
         internal_recv_data_.clear();
 
