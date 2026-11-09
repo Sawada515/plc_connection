@@ -23,4 +23,5 @@ add_subdirectory(app)
 
 add_subdirectory(test/serial)
 add_subdirectory(test/computer_link)
+add_subdirectory(test/logger)
 
