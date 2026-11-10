@@ -18,6 +18,7 @@
 #include <string>
 #include <cstring>
 #include <vector>
+#include <chrono>
 
 namespace protocol {
     class ComputerLink {

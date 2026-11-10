@@ -732,8 +732,6 @@ namespace protocol
 
             ssize_t bytes_read = serial_.read(buffer + total_bytes_read, 1);
 
-            std::cout << "bytes_read: " << bytes_read << std::endl;
-
             if (bytes_read < 0) {
                 return total_bytes_read;
             }
