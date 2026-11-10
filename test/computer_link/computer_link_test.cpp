@@ -15,12 +15,13 @@
 #include <cstdint>
 #include <vector>
 #include <stdexcept>
+#include <chrono>
 
 constexpr size_t BUFFER_SIZE = 256;
 
-constexpr std::uint8_t BRANCH_NUMBER = 0x05;
+constexpr std::uint8_t BRANCH_NUMBER = 0x00;
 constexpr std::uint8_t PC_NUMBER = 0xFF;
-constexpr char TELEGRAM_WAIT = '0';
+constexpr char TELEGRAM_WAIT = '1';
 
 int main()
 {
@@ -31,21 +32,20 @@ int main()
 
     try {
         // チェックサムなし　CRLFなし   OK
-        //protocol::ComputerLink computer_link("/dev/ttyUSB0", false, false, 5, 10);
+        protocol::ComputerLink computer_link("/dev/ttyUSB0", false, false, 5, 2000);
         // チェックサムあり　CRLFなし   OK
         //protocol::ComputerLink computer_link("/dev/ttyUSB0", true, false, 5, 10);
         // チェックサムなし　CRLFあり   OK
         //protocol::ComputerLink computer_link("/dev/ttyUSB0", false, true, 5, 10);
         // チェックサムあり CRLFあり
-        protocol::ComputerLink computer_link("/dev/ttyUSB0", true, true, 5, 10);
+        //protocol::ComputerLink computer_link("/dev/ttyUSB0", true, true, 5, 10);
 
-/*
         ret = computer_link.br(
             BRANCH_NUMBER,
             PC_NUMBER,
-            'A',
-            "X0040",
-            5,
+            TELEGRAM_WAIT,
+            "M0252",
+            1,
             recv_data
         );
 
@@ -66,8 +66,8 @@ int main()
             BRANCH_NUMBER,
             PC_NUMBER,
             TELEGRAM_WAIT,
-            "X0040",
-            2,
+            "D8431",
+            1,
             recv_data
         );
 
@@ -88,8 +88,8 @@ int main()
             BRANCH_NUMBER,
             PC_NUMBER,
             TELEGRAM_WAIT,
-            "X000040",
-            2,
+            "D008431",
+            1,
             recv_data
         );
 
@@ -107,7 +107,7 @@ int main()
         }
 
         ret = computer_link.pc(
-            0x0F,
+            BRANCH_NUMBER,
             PC_NUMBER,
             TELEGRAM_WAIT,
             recv_data
@@ -126,7 +126,7 @@ int main()
             std::cout << "Command failed with status: " << static_cast<int>(ret) << std::endl;
         }
 
-*/
+/*
         // write系コマンドのテスト
 
         std::vector<std::uint8_t> send_data;
@@ -228,12 +228,14 @@ int main()
         );
         
         std::cout << "GW command result: " << computer_link.convert_command_status_to_string(ret) << std::endl;
+    */
     }
     catch (const std::runtime_error& e) {
         printf("Error: %s\n", e.what());
 
         return 1;
     }
+
 
     return 0;
 }

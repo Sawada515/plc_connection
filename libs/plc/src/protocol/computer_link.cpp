@@ -21,10 +21,12 @@
 #include <stdexcept>
 
 #define DEBUG
-/* DEBUG時は7.5秒の待ちが必ず入る */
 
 #ifdef DEBUG
 #include <iostream>
+
+#define TIMEOUT_COUNT    0
+/* DEBUG時の待ち時間変更 50ms * TIMEOUT_COUNT */
 
 void debug_print(const std::vector<std::uint8_t> &data)
 {
@@ -621,7 +623,7 @@ namespace protocol
         wait_ms(calculate_telegram_wait_to_ms(telegram_wait));
 
 #ifdef DEBUG
-        for (int i = 0; i < 50; ++i) {
+        for (int i = 0; i < TIMEOUT_COUNT; ++i) {
             wait_ms(calculate_telegram_wait_to_ms('F'));
         }
 #endif
@@ -668,7 +670,7 @@ namespace protocol
         wait_ms(calculate_telegram_wait_to_ms(telegram_wait));
 
 #ifdef DEBUG
-        for (int i = 0; i < 50; ++i) {
+        for (int i = 0; i < TIMEOUT_COUNT; ++i) {
             wait_ms(calculate_telegram_wait_to_ms('F'));
         }
 #endif
@@ -730,6 +732,8 @@ namespace protocol
 
             ssize_t bytes_read = serial_.read(buffer + total_bytes_read, 1);
 
+            std::cout << "bytes_read: " << bytes_read << std::endl;
+
             if (bytes_read < 0) {
                 return total_bytes_read;
             }
@@ -745,6 +749,32 @@ namespace protocol
         }
 
         return total_bytes_read;
+    }
+
+    bool ComputerLink::read_exact(
+        std::uint8_t* buffer,
+        size_t exact_size,
+        const std::chrono::steady_clock::time_point& deadline
+    )
+    {
+        size_t total_bytes_read = 0;
+    
+        while (total_bytes_read < exact_size) {
+            if (std::chrono::steady_clock::now() >= deadline) {
+                return false;
+            }
+    
+            ssize_t bytes_read = serial_.read(buffer + total_bytes_read, exact_size - total_bytes_read);
+            
+            if (bytes_read < 0) {
+                return false;
+            }
+            if (bytes_read > 0) {
+                total_bytes_read += static_cast<size_t>(bytes_read);
+            }
+        }
+
+        return true;
     }
 
     ComputerLink::CommandStatus ComputerLink::recv_frame()
@@ -806,8 +836,8 @@ namespace protocol
 
             if (append_checksum_flag_) {
                 char checksum_str[2];
-                ssize_t checksum_read = serial_.read(reinterpret_cast<std::uint8_t *>(checksum_str), 2);
-                if (checksum_read != 2) {
+                bool is_checksum_read = read_exact(reinterpret_cast<std::uint8_t *>(checksum_str), 2, deadline);
+                if (is_checksum_read == false) {
                     internal_recv_data_.clear();
 
                     return CommandStatus::UnknownError;
@@ -826,8 +856,9 @@ namespace protocol
         else if (first_char == static_cast<std::uint8_t>(ControlAsciiCode::ACK)) {
             internal_recv_data_.resize(ACK_RESPONSE_SIZE);
 
-            ssize_t ret = serial_.read(internal_recv_data_.data(), ACK_RESPONSE_SIZE);
-            if (ret != ACK_RESPONSE_SIZE) {
+            //ssize_t ret = serial_.read(internal_recv_data_.data(), ACK_RESPONSE_SIZE);
+            bool ret = read_exact(internal_recv_data_.data(), ACK_RESPONSE_SIZE, deadline);
+            if (ret == false) {
                 internal_recv_data_.clear();
 
                 return CommandStatus::UnknownError;
@@ -842,8 +873,8 @@ namespace protocol
         else if (first_char == static_cast<std::uint8_t>(ControlAsciiCode::NAK)) {
             internal_recv_data_.resize(NAK_RESPONSE_SIZE);
 
-            ssize_t ret = serial_.read(internal_recv_data_.data(), NAK_RESPONSE_SIZE);
-            if (ret != NAK_RESPONSE_SIZE) {
+            bool ret = read_exact(internal_recv_data_.data(), NAK_RESPONSE_SIZE, deadline);
+            if (ret == false) {
                 internal_recv_data_.clear();
 
                 return CommandStatus::UnknownError;

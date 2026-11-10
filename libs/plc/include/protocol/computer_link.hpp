@@ -211,6 +211,8 @@ namespace protocol {
 
         ssize_t read_until(std::uint8_t* buffer, const size_t max_read_size, const char delimiter);
 
+        bool read_exact(std::uint8_t* buffer, size_t exact_size, const std::chrono::steady_clock::time_point& deadline);
+
         void finalize_send_data();
 
         CommandStatus recv_frame();

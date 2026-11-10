@@ -42,6 +42,20 @@ bool Serial::open()
     }
 
     struct termios tty{};
+
+    /*　既存既存設定を読み出し */
+    if (tcgetattr(fd_, &tty) != 0) {
+        ::close(fd_);
+
+        fd_ = -1;
+
+        return false;
+    }
+
+    // Raw mode
+    cfmakeraw(&tty);
+
+    // set bandrate
     cfsetospeed(&tty, static_cast<speed_t>(baudrate_));
     cfsetispeed(&tty, static_cast<speed_t>(baudrate_));
 
@@ -52,16 +66,18 @@ bool Serial::open()
     tty.c_cflag &= ~CRTSCTS; // no flow control
     tty.c_cflag |= CREAD | CLOCAL; // enable receiver, ignore modem control
 
-    tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // disable canonical mode
-    tty.c_iflag &= ~(IXON | IXOFF | IXANY); // disable software flow control
-    tty.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
-    tty.c_oflag &= ~OPOST; // disable output processing
-
-    tty.c_cc[VTIME] = 2;
+    tty.c_cc[VTIME] = 0;
     tty.c_cc[VMIN] = 1;
+
+    tcflush(fd_, TCIOFLUSH);
 
     if (tcsetattr(fd_, TCSANOW, &tty) != 0) {
         return false;
+    }
+
+    int flags = fcntl(fd_, F_GETFL, 0);
+    if (flags != -1) {
+        fcntl(fd_, F_SETFL, flags & ~O_NONBLOCK);
     }
 
     return true;
@@ -92,6 +108,12 @@ bool Serial::write(const std::uint8_t *data, size_t size)
         size -= wrote_bytes;
     }
 
+    if (::tcdrain(fd_) != 0) {
+        return false;
+    }
+
+    ::tcflush(fd_, TCIFLUSH);
+
     return true;
 }
 
@@ -107,46 +129,18 @@ ssize_t Serial::read(std::uint8_t* buffer, const size_t max_read_size)
         .revents = 0
     };
 
-    size_t already_read_byte = 0;
-
-    while (already_read_byte < max_read_size) {
-        int ret = ::poll(&pfd, 1, timeout_ms_);        
-        if (ret < 0) {
-            if (errno == EINTR) {
-                continue; 
-            }
-            
-            return -1;
-        }
-        if (ret == 0) {
-            break;  // timeout
-        }
-
-        // POLLERR  <= エラー状態
-        // POLLHUP  <= 切断もしくは読み取り可能状態ではない
-        // POLLNVAL <= 無効なファイルディスクリプタ
-        if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
-            return -1;
-        }
-
-        // POLLIN <= 読み取り可能データあり
-        if (pfd.revents & POLLIN) {
-            ssize_t n = ::read(fd_, buffer + already_read_byte, max_read_size - already_read_byte);
-            if (n < 0) {
-                if (errno == EINTR) {
-                    continue; 
-                }
-    
-                return -1;
-            }
-    
-            if (n == 0) {
-                continue;
-            }
-    
-            already_read_byte += static_cast<size_t>(n);
-        }
+    int ret = ::poll(&pfd, 1, timeout_ms_);
+    if (ret < 0) {
+        if (errno == EINTR) return 0;
+        return -1;
+    }
+    if (ret == 0) {
+        return 0; // タイムアウト
     }
 
-    return static_cast<ssize_t>(already_read_byte);
+    if (pfd.revents & POLLIN) {
+        return ::read(fd_, buffer, max_read_size);
+    }
+
+    return -1;
 }
