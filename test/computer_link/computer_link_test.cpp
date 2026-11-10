@@ -97,7 +97,20 @@ int main()
 
         if (ret == protocol::ComputerLink::CommandStatus::Success) {
             std::cout << "Received data: ";
-            for (ata
+            for (const auto& byte : recv_data) {
+                std::cout << std::hex << static_cast<int>(byte) << " ";
+            }
+            std::cout << std::endl;
+        }
+        else {
+            std::cout << "Command failed with status: " << static_cast<int>(ret) << std::endl;
+        }
+
+        ret = computer_link.pc(
+            BRANCH_NUMBER,
+            PC_NUMBER,
+            TELEGRAM_WAIT,
+            recv_data
         );
 
         std::cout << "PC command result: " << computer_link.convert_command_status_to_string(ret) << std::endl;
@@ -224,17 +237,3 @@ int main()
 
     return 0;
 }
-const auto& byte : recv_data) {
-                std::cout << std::hex << static_cast<int>(byte) << " ";
-            }
-            std::cout << std::endl;
-        }
-        else {
-            std::cout << "Command failed with status: " << static_cast<int>(ret) << std::endl;
-        }
-
-        ret = computer_link.pc(
-            BRANCH_NUMBER,
-            PC_NUMBER,
-            TELEGRAM_WAIT,
-            recv_d
