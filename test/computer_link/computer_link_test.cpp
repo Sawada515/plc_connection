@@ -6,7 +6,7 @@
  * @note 計算機リンクプロトコルの動作確認
  */
 
-#include <protocol/computer_link.hpp>
+#include <plc/protocol/computer_link.hpp>
 
 #include <errno.h>
 

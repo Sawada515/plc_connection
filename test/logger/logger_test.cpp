@@ -9,7 +9,7 @@
 
 int main()
 {
-    Logger::Logger logger("test_service", "local0");
+    logger::Logger logger("test_service", "local0");
 
     logger.open();
 

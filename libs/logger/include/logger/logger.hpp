@@ -21,7 +21,7 @@
 #include <memory>
 #include <stdexcept>
 
-namespace Logger {
+namespace logger {
     class Logger {
       private:
         std::string service_name_;

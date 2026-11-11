@@ -1,6 +1,6 @@
 add_library(plc
     src/plc/communication.cpp
-    src/protocol/computer_link.cpp
+    src/plc/protocol/computer_link.cpp
 )
 
 target_include_directories(plc
