@@ -21,6 +21,7 @@ add_subdirectory(libs/serial)
 add_subdirectory(libs/plc)
 add_subdirectory(libs/logger)
 add_subdirectory(libs/uds)
+add_subdirectory(libs/database_system_connector)
 
 add_subdirectory(app)
 
