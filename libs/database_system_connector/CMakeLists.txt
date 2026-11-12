@@ -1,5 +1,4 @@
 add_library(database_connector_system
-    src/database_system_connector/json/json_helper.cpp
     src/database_system_connector/models/request.cpp
     src/database_system_connector/models/response.cpp
 )

@@ -68,20 +68,4 @@ namespace database_system_connector::models {
             json::get_optional<std::string>(obj, "message")
         };
     }
-
-    template <typename TPayload>
-    DatabaseResponse<TPayload> tag_invoke(
-        boost::json::value_to_tag<DatabaseResponse<TPayload>>,
-        const boost::json::value& json_value
-    )
-    {
-        const auto& obj = json_value.as_object();
-
-        return DatabaseResponse<TPayload>{
-            boost::json::value_to<int>(obj.at("request_id")),
-            boost::json::value_to<ResponseStatus>(obj.at("status")),
-            json::get_optional<TPayload>(obj, "payload"),
-            json::get_optional<DatabaseError>(obj, "error")
-        };
-    }
 }

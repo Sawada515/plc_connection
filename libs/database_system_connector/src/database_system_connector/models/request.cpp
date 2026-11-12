@@ -137,31 +137,4 @@ namespace database_system_connector::models {
             assert(false && "Invalid Resource string");
         }
     }
-
-    template <typename TData>
-    void tag_invoke(
-        boost::json::value_from_tag,
-        boost::json::value& json_value,
-        const DatabasePayload<TData>& payload
-    )
-    {
-        json_value = {
-            {"query_type", payload.query_type},
-            {"resource", payload.resource},
-            {"data", boost::json::value_from(payload.data)}
-        };
-    }
-
-    template <typename TData>
-    void tag_invoke(
-        boost::json::value_from_tag,
-        boost::json::value& json_value,
-        const DatabaseRequest<TData>& request
-    )
-    {
-        json_value = {
-            {"request_id", request.request_id},
-            {"payload", boost::json::value_from(request.payload)}
-        };
-    }
 }
